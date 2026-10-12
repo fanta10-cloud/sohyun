@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>발표 타이머</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fffaf0;--dot:#ffe3b3;--card:#fff;--ink:#2b2d42;--mute:#7a7d95;--line:#eceaf4;--ok:#22c55e;--warn:#ffb020;--bad:#ff5a5f;--acc:#3b82f6;--c1:#ff7a59;--c2:#3bb5ff;--c3:#2fd3a5;--yel:#ffd43b}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1d2b;--dot:#2a2d42;--card:#25283a;--ink:#f4f4fb;--mute:#a7a9c2;--line:#363a52}}
+:root[data-theme="dark"]{--bg:#1b1d2b;--dot:#2a2d42;--card:#25283a;--ink:#f4f4fb;--mute:#a7a9c2;--line:#363a52}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;color:var(--ink);font-family:"Noto Sans KR","Pretendard","Malgun Gothic",sans-serif;background-color:var(--bg);background-image:radial-gradient(var(--dot) 2px,transparent 2px);background-size:26px 26px}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 40px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+h1,h2,.who,#clock,.done,.order,.tab,.big,.stat{font-family:"Jua","Noto Sans KR",sans-serif;font-weight:400}
+h1{margin:0;font-size:32px}h1 em{font-style:normal;background:var(--yel);padding:0 8px;border-radius:8px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{border:3px solid var(--ink);background:var(--card);color:var(--ink);font-size:19px;padding:8px 18px;border-radius:999px;cursor:pointer;box-shadow:0 4px 0 var(--ink);transition:transform .1s}
+.tab:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.tab.on[data-t=setup]{background:var(--c1);color:#fff}.tab.on[data-t=talk]{background:var(--c2);color:#fff}.tab.on[data-t=sum]{background:var(--c3);color:#fff}
+.card{background:var(--card);border:3px solid var(--ink);border-radius:24px;padding:24px;box-shadow:0 8px 0 var(--ink);margin-bottom:22px}
+.pane{display:none}.pane.on{display:block}
+label{font-size:14px;color:var(--mute);display:block;margin-bottom:5px;font-weight:700}
+input,textarea{font:inherit;padding:10px 12px;border:2px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink)}
+input:focus,textarea:focus{outline:3px solid var(--c2);border-color:transparent}
+textarea{width:100%;min-height:170px;resize:vertical;line-height:1.6}
+.row{display:flex;flex-wrap:wrap;gap:14px;align-items:end}
+button{font:inherit;font-weight:900;border:3px solid var(--ink);border-radius:14px;padding:11px 20px;cursor:pointer;background:var(--acc);color:#fff;box-shadow:0 4px 0 var(--ink)}
+button:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+button.sec{background:var(--card);color:var(--ink)}
+button:disabled{opacity:.35;cursor:default}
+.mute{color:var(--mute);font-size:14px}
+h2{margin:0 0 14px;font-size:24px}
+.stage{text-align:center;padding:30px 20px;position:relative}
+.order{display:inline-block;background:var(--yel);color:#2b2d42;border:3px solid var(--ink);padding:4px 18px;border-radius:99px;font-size:20px}
+.who{font-size:clamp(48px,9vw,96px);margin:14px 0 4px;color:var(--c1)}
+.guide{margin:16px auto 22px;max-width:780px;background:#e8f6ff;color:#1e3a5f;border:3px dashed var(--c2);border-radius:20px;padding:18px 22px;font-size:clamp(19px,2.7vw,27px);font-weight:900;line-height:1.6}
+.guide b{color:#fff;background:var(--ok);padding:0 10px;border-radius:8px}.guide i{font-style:normal;color:#fff;background:var(--bad);padding:0 10px;border-radius:8px}
+.rule{font-size:clamp(17px,2.2vw,22px);color:var(--mute);font-weight:700}
+#clock{font-variant-numeric:tabular-nums;font-size:clamp(110px,21vw,240px);line-height:1;margin:10px 0;color:var(--mute);transition:color .3s}
+#clock.ok{color:var(--ok)}#clock.over{color:var(--bad);animation:shake .6s infinite}
+@keyframes shake{0%,100%{transform:none}25%{transform:rotate(-1.5deg)}75%{transform:rotate(1.5deg)}}
+#status{font-size:clamp(19px,2.8vw,28px);font-weight:900;min-height:1.3em;margin-bottom:16px}
+.bar{width:min(620px,100%);height:22px;border-radius:11px;background:var(--line);border:3px solid var(--ink);position:relative;overflow:hidden;margin:0 auto 24px}
+.bar .zone{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,#bbf7d0 0 8px,#86efac 8px 16px)}
+.bar .fill{position:absolute;top:0;bottom:0;left:0;background:var(--c2);opacity:.85}
+.big{font-size:clamp(26px,3.6vw,38px);padding:16px 56px;border-radius:20px;box-shadow:0 6px 0 var(--ink)}
+#startBtn{background:var(--ok)}#endBtn{background:var(--bad)}
+.nav{display:flex;justify-content:center;gap:10px;margin-top:24px}
+.done{font-size:clamp(30px,5vw,54px);padding:40px 0}
+.mic{position:absolute;top:18px;right:18px;width:18px;height:18px;border-radius:50%;background:var(--line);border:2px solid var(--ink)}
+.mic.on{background:var(--bad);animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 8px rgba(255,90,95,.25)}}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{border-bottom:2px solid var(--line);padding:12px 8px;text-align:left;vertical-align:top}
+th{font-size:14px;color:var(--mute)}
+tr.sel td{background:rgba(59,181,255,.12)}tbody tr{cursor:pointer}tbody tr:hover td{background:rgba(255,212,59,.15)}
+.pill{display:inline-block;padding:3px 12px;border-radius:99px;font-size:13px;font-weight:900;color:#fff;white-space:nowrap;border:2px solid var(--ink)}
+.p-ok{background:var(--ok)}.p-short{background:var(--warn)}.p-over{background:var(--bad)}.p-none{background:#a1a1aa}
+.detail{margin-top:18px;border-top:3px dashed var(--line);padding-top:16px}
+.detail .txt{white-space:pre-wrap;line-height:1.8;font-size:17px;background:var(--bg);border:2px solid var(--line);border-radius:14px;padding:16px}
+.stats{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+.stat{flex:1;min-width:120px;border-radius:18px;padding:12px 16px;color:#fff;font-size:18px;border:3px solid var(--ink)}
+.stat span{display:block;font-size:34px}
+#micTest{margin-top:12px;min-height:3em;padding:12px;border-radius:12px;background:var(--bg);border:2px dashed var(--line)}
+
+/* 발표 화면: 노트북 한 화면 고정 */
+body.talking{height:100vh;overflow:hidden}
+body.talking .wrap{height:100vh;display:flex;flex-direction:column;padding-top:12px;padding-bottom:14px}
+body.talking header{margin-bottom:12px}
+body.talking #p-talk{flex:1;min-height:0}
+#p-talk .stage{height:100%;margin:0;padding:2.5vh 3vw;display:grid;grid-template-columns:1fr 1.15fr;gap:3vw;align-items:center;text-align:center}
+#p-talk .stage.single{display:flex;flex-direction:column;justify-content:center}
+.colL,.colR{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.6vh;min-height:0}
+.order{font-size:clamp(15px,2.6vh,22px)}
+.who{font-size:clamp(34px,9vh,90px);margin:0;line-height:1.1;word-break:keep-all}
+.rule{font-size:clamp(14px,2.6vh,22px)}
+.guide{margin:0;font-size:clamp(15px,3vh,26px);padding:2vh 1.6vw;line-height:1.6}
+#clock{font-size:clamp(70px,22vh,220px);margin:0}
+#status{font-size:clamp(15px,3.2vh,28px);margin:0}
+.bar{margin:0;height:clamp(14px,2.6vh,22px)}
+.big{font-size:clamp(20px,4.4vh,36px);padding:1.8vh 3.4vw}
+.nav{margin-top:.5vh}.nav button{padding:6px 14px;font-size:14px}
+.done{padding:0;font-size:clamp(26px,6vh,54px)}
+@media (max-aspect-ratio:1/1){#p-talk .stage{grid-template-columns:1fr}}
+
+.who{font-size:clamp(44px,14vh,140px)!important;color:var(--c1);-webkit-text-stroke:2px var(--ink);text-shadow:4px 4px 0 var(--yel)}
+.mic{position:static;grid-column:1/-1;justify-self:center;width:auto;height:auto;border:0;background:none;display:flex;align-items:center;gap:12px;font-family:"Jua",sans-serif;font-size:clamp(14px,2.6vh,22px);color:var(--mute)}
+.mic .ico{width:clamp(48px,9vh,84px);height:clamp(48px,9vh,84px);border-radius:50%;border:3px solid var(--ink);background:var(--line);display:grid;place-items:center;font-size:clamp(26px,5vh,46px);box-shadow:0 4px 0 var(--ink)}
+.mic.on{background:none;animation:none;color:var(--bad)}
+.mic.on .ico{background:var(--bad);animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 4px 0 var(--ink),0 0 0 14px rgba(255,90,95,.3)}}
+#p-talk .stage{grid-template-rows:1fr auto;row-gap:1.5vh}
+
+#p-talk .stage{position:relative;overflow:hidden;padding-bottom:20vh}
+.mic{position:absolute!important;top:auto!important;right:auto!important;left:50%;bottom:0;transform:translateX(-50%);flex-direction:column;gap:0;align-items:center}
+.mic .ico{--micfill:#c9ccdb;width:36vh;height:22vh;border:0!important;background:none!important;box-shadow:none!important;border-radius:0;overflow:hidden;display:block;transition:transform .3s}
+.mic .ico svg{width:100%;display:block}
+.mic.on .ico{--micfill:#ff5a5f;animation:bob 1s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-6px) scale(1.04)}}
+.mic #micTxt{position:absolute;top:-3.6vh;white-space:nowrap;background:var(--card);border:3px solid var(--ink);border-radius:99px;padding:2px 14px;font-size:clamp(14px,2.4vh,20px)}
+.mic.on #micTxt{background:var(--bad);color:#fff}
+</style></head><body>
+<div class="wrap">
+<header>
+  <h1>🎤 <em>발표</em> 타이머</h1>
+  <nav class="tabs">
+    <button class="tab on" data-t="setup">① 명단·설정</button>
+    <button class="tab" data-t="talk">② 발표</button>
+    <button class="tab" data-t="sum">③ 요약</button>
+  </nav>
+</header>
+
+<section class="pane on" id="p-setup">
+  <div class="card">
+    <h2>발표 순서 명단</h2>
+    <p class="mute" style="margin-top:-6px">한 줄에 한 명씩 입력하거나, 엑셀에서 복사해 붙여 넣거나, .txt/.csv 파일을 올리세요. (csv는 첫 번째 칸을 이름으로 사용)</p>
+    <textarea id="roster" placeholder="1번 김민준&#10;2번 이서연&#10;3번 박지호"></textarea>
+    <div class="row" style="margin-top:12px">
+      <label class="sec" style="margin:0"><input type="file" id="file" accept=".txt,.csv" style="display:none"><span class="mute" style="display:inline-block;border:2px solid var(--line);border-radius:12px;padding:11px 18px;font-weight:800;color:var(--ink);cursor:pointer">📂 파일 올리기</span></label>
+      <span class="mute" id="rcount"></span>
+    </div>
+  </div>
+  <div class="card">
+    <h2>시간 제한</h2>
+    <div class="row">
+      <div><label>최소 (초)</label><input id="minS" type="number" value="60" min="0" style="width:120px"></div>
+      <div><label>최대 (초)</label><input id="maxS" type="number" value="90" min="1" style="width:120px"></div>
+      <button id="applyBtn">명단 적용하고 발표 시작 →</button>
+    </div>
+    <div class="row" style="margin-top:16px"><button class="sec" id="testBtn">🎙 마이크 테스트</button></div>
+    <div id="micTest" class="mute">버튼을 누르고 말해 보세요. 여기에 글자가 나오면 음성 인식이 정상입니다.</div>
+    <p class="mute" id="srNote" style="margin:14px 0 0">음성 인식은 Chrome·Edge에서 작동합니다. 처음 시작할 때 마이크 권한을 허용해 주세요. 명단을 새로 적용하면 기존 기록은 초기화됩니다.</p>
+  </div>
+</section>
+
+<section class="pane" id="p-talk">
+  <div class="card stage" id="stageBox"></div>
+</section>
+
+<section class="pane" id="p-sum">
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h2 style="margin:0">발표 요약</h2>
+      <button class="sec" id="csvBtn">CSV 저장</button>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="tw"><table><thead><tr><th>순서</th><th>이름</th><th>발표 시간</th><th>판정</th><th>발표 내용 (미리보기)</th></tr></thead><tbody id="tb"></tbody></table></div>
+    <p class="mute">행을 누르면 해당 학생의 발표 내용 전체를 볼 수 있습니다.</p>
+    <div class="detail" id="detail" style="display:none"></div>
+  </div>
+</section>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const fmt=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const label={ok:'적정',short:'미달',over:'초과',none:'미발표'};
+let st={list:[],min:60,max:90,cur:0,sel:null};
+try{const s=JSON.parse(localStorage.getItem('speechState2')||'null');if(s)st=s}catch(e){}
+const save=()=>{try{localStorage.setItem('speechState2',JSON.stringify(st))}catch(e){}};
+if(st.list.length){$('roster').value=st.list.map(x=>x.name).join('\n');$('minS').value=st.min;$('maxS').value=st.max}
+
+function tab(t){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));if(t==='sum')renderSum();document.body.classList.toggle('talking',t==='talk');if(t==='talk')renderStage()}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{if(running){alert('발표 중에는 탭을 바꿀 수 없습니다.');return}tab(b.dataset.t)});
+
+const names=()=>$('roster').value.split(/\r?\n/).map(l=>l.split(/[,\t]/)[0].trim().replace(/^"|"$/g,'')).filter(Boolean);
+const upd=()=>$('rcount').textContent=names().length?`👥 ${names().length}명`:'';
+$('roster').oninput=upd;upd();
+$('file').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('roster').value=names.call(null,$('roster').value=r.result).join('\n');upd()};r.readAsText(f,'utf-8');e.target.value=''};
+$('applyBtn').onclick=()=>{
+  const n=names(),mi=+$('minS').value||0,ma=+$('maxS').value||1;
+  if(!n.length){alert('명단을 입력해 주세요.');return}
+  if(ma<=mi){alert('최대 시간이 최소 시간보다 커야 합니다.');return}
+  if(st.list.some(x=>x.j)&&!confirm('기존 발표 기록이 지워집니다. 계속할까요?'))return;
+  st={list:n.map(name=>({name})),min:mi,max:ma,cur:0,sel:null};save();tab('talk');
+};
+
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(!SR)$('srNote').textContent='⚠ 이 브라우저는 음성 인식을 지원하지 않습니다. Chrome에서 열어 주세요. (시간 기록은 가능)';
+let lastErr='',rec=null,finalTxt='',interim='',running=false,t0=0,tick=null;
+const judge=s=>s<st.min?'short':s>st.max?'over':'ok';
+
+function renderStage(){
+  const b=$('stageBox');b.className='card stage single';
+  if(!st.list.length){b.innerHTML='<div class="done">📋 먼저 ① 명단·설정에서<br>명단을 적용해 주세요.</div>';return}
+  if(st.cur>=st.list.length){b.innerHTML='<div class="done">🎉 모든 발표가 끝났습니다!</div><button class="big" id="toSum">③ 요약 보기</button><div class="nav"><button class="sec" id="prev">◀ 이전 학생</button></div>';$('toSum').onclick=()=>tab('sum');$('prev').onclick=()=>{st.cur--;save();renderStage()};return}
+  const p=st.list[st.cur],top=st.max*1.25;
+  b.className='card stage';
+  b.innerHTML=`
+  <div class="colL"><span class="order">발표 순서 ${st.cur+1} / ${st.list.length}</span>
+  <div class="who">${esc(p.name)}</div>
+  <div class="rule">⏱ ${fmt(st.min)} 이상 ~ ${fmt(st.max)} 이하</div>
+  <div class="guide">✅ 본인의 이름을 확인하세요.<br>맞으면 <b>[시작]</b> 버튼을 누르고,<br>발표가 끝나면 <i>[마침]</i> 버튼을 누르세요.</div></div>
+  <div class="colR"><div id="clock">0:00</div>
+  <div class="bar"><div class="zone" style="left:${st.min/top*100}%;width:${(st.max-st.min)/top*100}%"></div><div class="fill" id="fill"></div></div>
+  <div id="status">${p.j?'이미 발표 완료 ('+fmt(p.sec)+') · 다시 하면 덮어씁니다':''}</div>
+  <div class="row" style="justify-content:center"><button class="big" id="startBtn">▶ 시작</button><button class="big" id="endBtn" disabled>■ 마침</button></div>
+  <div class="nav"><button class="sec" id="prev" ${st.cur?'':'disabled'}>◀ 이전</button><button class="sec" id="skip">건너뛰기 ▶</button></div></div>
+  <div class="mic" id="micDot"><div class="ico"><svg viewBox="0 0 200 200" aria-hidden="true"><rect x="14" y="8" width="172" height="200" rx="86" fill="var(--micfill)" stroke="#2b2d42" stroke-width="8"/><g stroke="#2b2d42" stroke-width="6" opacity=".55"><line x1="34" y1="55" x2="166" y2="55"/><line x1="20" y1="85" x2="180" y2="85"/><line x1="18" y1="115" x2="182" y2="115"/><line x1="18" y1="145" x2="182" y2="145"/><line x1="58" y1="18" x2="58" y2="200"/><line x1="100" y1="12" x2="100" y2="200"/><line x1="142" y1="18" x2="142" y2="200"/></g><ellipse cx="62" cy="48" rx="16" ry="26" fill="#fff" opacity=".6"/></svg></div><span id="micTxt">시작을 누르면 마이크가 켜져요</span></div>`;
+  $('startBtn').onclick=start;$('endBtn').onclick=end;
+  $('prev').onclick=()=>{st.cur--;save();renderStage()};$('skip').onclick=()=>{st.cur++;save();renderStage()};
+}
+// 음성 인식은 한 번 켜면 계속 유지(허용 팝업 반복 방지). 발표 중일 때만 기록.
+let capturing=false;
+function micUI(on){const d=$('micDot');if(!d)return;d.classList.toggle('on',on);$('micTxt').textContent=on?'듣고 있어요!':(rec?'마이크 대기 중':'시작을 누르면 마이크가 켜져요')}
+function ensureRec(){
+  if(!SR||rec)return;
+  rec=new SR();rec.lang='ko-KR';rec.continuous=true;rec.interimResults=true;
+  rec.onresult=e=>{if(!capturing)return;interim='';for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i];if(r.isFinal)finalTxt+=r[0].transcript+' ';else interim+=r[0].transcript}};
+  rec.onstart=()=>micUI(capturing);
+  rec.onerror=e=>{if(e.error!=='no-speech'&&e.error!=='aborted')lastErr=e.error};
+  rec.onend=()=>{if(lastErr==='not-allowed'||lastErr==='service-not-allowed'){rec=null;micUI(false);return}
+    if(capturing&&interim){finalTxt+=interim+' ';interim=''}
+    setTimeout(()=>{try{rec&&rec.start()}catch(e){}},150)};
+  try{rec.start()}catch(e){lastErr='start-failed';rec=null}
+}
+function start(){
+  running=true;t0=performance.now();finalTxt='';interim='';lastErr='';
+  if(tRec){try{tRec.stop()}catch(e){}}
+  ensureRec();capturing=true;micUI(true);
+  $('startBtn').disabled=true;$('endBtn').disabled=false;$('prev').disabled=true;$('skip').disabled=true;
+  tick=setInterval(()=>{const s=(performance.now()-t0)/1000,j=judge(s);
+    $('clock').textContent=fmt(s);$('clock').className=j==='short'?'':j;
+    $('status').textContent=j==='short'?`최소 시간까지 ${Math.ceil(st.min-s)}초`:j==='ok'?`👍 적정 구간 · 남은 시간 ${Math.ceil(st.max-s)}초`:`⚠ ${Math.floor(s-st.max)}초 초과`;
+    $('fill').style.width=Math.min(100,s/(st.max*1.25)*100)+'%'},100);
+}
+function end(){
+  const s=(performance.now()-t0)/1000;running=false;clearInterval(tick);
+  $('endBtn').disabled=true;$('status').textContent='저장 중…';
+  setTimeout(()=>{capturing=false;micUI(false);
+    Object.assign(st.list[st.cur],{sec:Math.round(s*10)/10,j:judge(s),text:(finalTxt+interim).trim()||(lastErr?'(인식 실패: '+errMsg(lastErr)+')':'')});
+    finalTxt='';interim='';st.cur++;save();renderStage()},900);
+}
+function renderSum(){
+  const c={ok:0,short:0,over:0,none:0};st.list.forEach(p=>c[p.j||'none']++);
+  $('stats').innerHTML=[['ok','#10b981'],['short','#f59e0b'],['over','#ef4444'],['none','#9ca3af']].map(([k,col])=>`<div class="stat" style="background:${col}">${label[k]}<span>${c[k]}명</span></div>`).join('');
+  const tb=$('tb');tb.innerHTML='';
+  st.list.forEach((p,i)=>{const tr=document.createElement('tr');if(st.sel===i)tr.className='sel';
+    const t=p.text||'';tr.innerHTML=`<td>${i+1}</td><td><b>${esc(p.name)}</b></td><td>${p.j?fmt(p.sec)+' <span class="mute">('+p.sec+'초)</span>':'-'}</td><td><span class="pill p-${p.j||'none'}">${label[p.j||'none']}</span></td><td>${p.j?esc(t.slice(0,40))+(t.length>40?'…':'')||'<span class="mute">(인식된 음성 없음)</span>':''}</td>`;
+    tr.onclick=()=>{st.sel=i;save();renderSum()};tb.appendChild(tr)});
+  const d=$('detail');if(st.sel==null||!st.list[st.sel]){d.style.display='none';return}
+  const p=st.list[st.sel];d.style.display='block';
+  d.innerHTML=`<h2>${st.sel+1}. ${esc(p.name)} <span class="pill p-${p.j||'none'}">${label[p.j||'none']}</span></h2><p class="mute">발표 시간: ${p.j?fmt(p.sec)+' ('+p.sec+'초)':'-'} · 기준 ${st.min}~${st.max}초 · 글자 수 ${(p.text||'').length}자</p><div class="txt">${p.j?(esc(p.text)||'(인식된 음성 없음)'):'아직 발표하지 않았습니다.'}</div>`;
+}
+function errMsg(e){return({'not-allowed':'마이크 권한이 차단됨','service-not-allowed':'이 화면에서는 음성 인식이 막혀 있음 — 파일을 내려받아 Chrome으로 여세요','no-speech':'소리가 들리지 않음','audio-capture':'마이크를 찾을 수 없음','network':'인터넷 연결 필요','start-failed':'음성 인식을 시작하지 못함'})[e]||e}
+let tRec=null;
+$('testBtn').onclick=()=>{const box=$('micTest');
+  if(!SR){box.textContent='⚠ 이 브라우저는 음성 인식을 지원하지 않습니다. Chrome 또는 Edge로 여세요.';return}
+  if(rec){box.textContent='✅ 마이크가 이미 켜져 있어요.';return}
+  if(tRec){tRec.stop();return}
+  tRec=new SR();tRec.lang='ko-KR';tRec.interimResults=true;tRec.continuous=true;let txt='';
+  tRec.onstart=()=>{$('testBtn').textContent='⏹ 테스트 멈추기';box.textContent='🔴 듣는 중… 말해 보세요.'};
+  tRec.onresult=e=>{let t='';for(let i=0;i<e.results.length;i++)t+=e.results[i][0].transcript;txt=t;box.textContent='✅ '+t};
+  tRec.onerror=e=>{box.textContent='⚠ '+errMsg(e.error)};
+  tRec.onend=()=>{$('testBtn').textContent='🎙 마이크 테스트';tRec=null};
+  try{tRec.start()}catch(e){box.textContent='⚠ '+errMsg('start-failed');tRec=null}};
+$('csvBtn').onclick=()=>{const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const csv='﻿순서,이름,발표시간(초),판정,발표내용\n'+st.list.map((p,i)=>[i+1,p.name,p.sec,label[p.j||'none'],p.text].map(q).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='발표기록.csv';a.click()};
+</script></body></html>
