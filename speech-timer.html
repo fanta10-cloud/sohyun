@@ -99,20 +99,25 @@ body.talking #p-talk{flex:1;min-height:0}
 @keyframes bob{50%{transform:translateY(-6px) scale(1.04)}}
 .mic #micTxt{position:absolute;top:-3.6vh;white-space:nowrap;background:var(--card);border:3px solid var(--ink);border-radius:99px;padding:2px 14px;font-size:clamp(14px,2.4vh,20px)}
 .mic.on #micTxt{background:var(--bad);color:#fff}
+
+.classbar{display:flex;gap:6px;align-items:center}
+.classbar select{font:inherit;font-family:"Jua",sans-serif;font-size:18px;padding:7px 12px;border:3px solid var(--ink);border-radius:12px;background:var(--yel);color:#2b2d42;box-shadow:0 4px 0 var(--ink);cursor:pointer}
+button.mini{padding:7px 12px;font-size:14px}
 </style></head><body>
 <div class="wrap">
 <header>
-  <h1>🎤 <em>발표</em> 타이머</h1>
+  <div class="row" style="align-items:center;gap:14px"><h1>🎤 <em>발표</em> 타이머</h1>
+  <div class="classbar"><select id="clsSel" aria-label="반 선택"></select><button class="sec mini" id="clsAdd">＋ 반 추가</button><button class="sec mini" id="clsRen" title="반 이름 바꾸기">✏️ 이름</button><button class="sec mini" id="clsDel" title="이 반 삭제">🗑</button></div></div>
   <nav class="tabs">
     <button class="tab on" data-t="setup">① 명단·설정</button>
     <button class="tab" data-t="talk">② 발표</button>
-    <button class="tab" data-t="sum">③ 요약</button>
+    <button class="tab" data-t="sum">③ 반별 정리</button>
   </nav>
 </header>
 
 <section class="pane on" id="p-setup">
   <div class="card">
-    <h2>발표 순서 명단</h2>
+    <h2>발표 순서 명단 · <span id="setCls"></span></h2>
     <p class="mute" style="margin-top:-6px">한 줄에 한 명씩 입력하거나, 엑셀에서 복사해 붙여 넣거나, .txt/.csv 파일을 올리세요. (csv는 첫 번째 칸을 이름으로 사용)</p>
     <textarea id="roster" placeholder="1번 김민준&#10;2번 이서연&#10;3번 박지호"></textarea>
     <div class="row" style="margin-top:12px">
@@ -140,7 +145,7 @@ body.talking #p-talk{flex:1;min-height:0}
 <section class="pane" id="p-sum">
   <div class="card">
     <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:14px">
-      <h2 style="margin:0">발표 요약</h2>
+      <h2 style="margin:0">반별 정리 · <span id="sumCls"></span></h2>
       <button class="sec" id="csvBtn">CSV 저장</button>
     </div>
     <div class="stats" id="stats"></div>
@@ -156,10 +161,20 @@ const $=id=>document.getElementById(id);
 const fmt=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const label={ok:'적정',short:'미달',over:'초과',none:'미발표'};
-let st={list:[],min:60,max:90,cur:0,sel:null};
-try{const s=JSON.parse(localStorage.getItem('speechState2')||'null');if(s)st=s}catch(e){}
-const save=()=>{try{localStorage.setItem('speechState2',JSON.stringify(st))}catch(e){}};
-if(st.list.length){$('roster').value=st.list.map(x=>x.name).join('\n');$('minS').value=st.min;$('maxS').value=st.max}
+const blank=()=>({list:[],min:60,max:90,cur:0,sel:null});
+let db={cur:'1반',classes:{'1반':blank()}};
+try{const d=JSON.parse(localStorage.getItem('speechClasses')||'null');if(d&&d.classes)db=d;else{const o=JSON.parse(localStorage.getItem('speechState2')||'null');if(o)db.classes['1반']=o}}catch(e){}
+let st=db.classes[db.cur]||(db.classes[db.cur]=blank());
+const save=()=>{db.classes[db.cur]=st;try{localStorage.setItem('speechClasses',JSON.stringify(db))}catch(e){}};
+function fillSetup(){$('setCls').textContent=db.cur;$('roster').value=st.list.map(x=>x.name).join('\n');$('minS').value=st.min;$('maxS').value=st.max;try{upd()}catch(e){}}
+function renderCls(){const sel=$('clsSel');sel.innerHTML='';Object.keys(db.classes).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k+(db.classes[k].list.length?` (${db.classes[k].list.filter(x=>x.j).length}/${db.classes[k].list.length})`:'');sel.appendChild(o)});sel.value=db.cur}
+function switchCls(k){db.cur=k;st=db.classes[k];save();renderCls();fillSetup();const on=document.querySelector('.tab.on').dataset.t;tab(on)}
+$('clsSel').onchange=e=>{if(running){alert('발표 중에는 반을 바꿀 수 없습니다.');e.target.value=db.cur;return}switchCls(e.target.value)};
+$('clsAdd').onclick=()=>{if(running)return;const n=(prompt('새 반 이름을 입력하세요 (예: 1학년 3반)')||'').trim();if(!n)return;if(db.classes[n]){alert('이미 있는 반입니다.');return}db.classes[n]=blank();switchCls(n);tab('setup')};
+$('clsRen').onclick=()=>{if(running)return;const n=(prompt('반 이름을 입력하세요',db.cur)||'').trim();if(!n||n===db.cur)return;if(db.classes[n]){alert('이미 있는 반 이름입니다.');return}
+  const c={};Object.keys(db.classes).forEach(k=>c[k===db.cur?n:k]=db.classes[k]);db.classes=c;db.cur=n;save();renderCls();fillSetup();tab(document.querySelector('.tab.on').dataset.t)};
+$('clsDel').onclick=()=>{if(running)return;if(Object.keys(db.classes).length<2){alert('반이 하나뿐이라 지울 수 없습니다.');return}if(!confirm(`'${db.cur}'의 명단과 기록을 모두 지울까요?`))return;delete db.classes[db.cur];switchCls(Object.keys(db.classes)[0])};
+renderCls();fillSetup();
 
 function tab(t){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));if(t==='sum')renderSum();document.body.classList.toggle('talking',t==='talk');if(t==='talk')renderStage()}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{if(running){alert('발표 중에는 탭을 바꿀 수 없습니다.');return}tab(b.dataset.t)});
@@ -173,7 +188,7 @@ $('applyBtn').onclick=()=>{
   if(!n.length){alert('명단을 입력해 주세요.');return}
   if(ma<=mi){alert('최대 시간이 최소 시간보다 커야 합니다.');return}
   if(st.list.some(x=>x.j)&&!confirm('기존 발표 기록이 지워집니다. 계속할까요?'))return;
-  st={list:n.map(name=>({name})),min:mi,max:ma,cur:0,sel:null};save();tab('talk');
+  st={list:n.map(name=>({name})),min:mi,max:ma,cur:0,sel:null};save();renderCls();tab('talk');
 };
 
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -184,11 +199,11 @@ const judge=s=>s<st.min?'short':s>st.max?'over':'ok';
 function renderStage(){
   const b=$('stageBox');b.className='card stage single';
   if(!st.list.length){b.innerHTML='<div class="done">📋 먼저 ① 명단·설정에서<br>명단을 적용해 주세요.</div>';return}
-  if(st.cur>=st.list.length){b.innerHTML='<div class="done">🎉 모든 발표가 끝났습니다!</div><button class="big" id="toSum">③ 요약 보기</button><div class="nav"><button class="sec" id="prev">◀ 이전 학생</button></div>';$('toSum').onclick=()=>tab('sum');$('prev').onclick=()=>{st.cur--;save();renderStage()};return}
+  if(st.cur>=st.list.length){b.innerHTML='<div class="done">🎉 모든 발표가 끝났습니다!</div><button class="big" id="toSum">③ 반별 정리 보기</button><div class="nav"><button class="sec" id="prev">◀ 이전 학생</button></div>';$('toSum').onclick=()=>tab('sum');$('prev').onclick=()=>{st.cur--;save();renderStage()};return}
   const p=st.list[st.cur],top=st.max*1.25;
   b.className='card stage';
   b.innerHTML=`
-  <div class="colL"><span class="order">발표 순서 ${st.cur+1} / ${st.list.length}</span>
+  <div class="colL"><span class="order">${esc(db.cur)} · 발표 순서 ${st.cur+1} / ${st.list.length}</span>
   <div class="who">${esc(p.name)}</div>
   <div class="rule">⏱ ${fmt(st.min)} 이상 ~ ${fmt(st.max)} 이하</div>
   <div class="guide">✅ 본인의 이름을 확인하세요.<br>맞으면 <b>[시작]</b> 버튼을 누르고,<br>발표가 끝나면 <i>[마침]</i> 버튼을 누르세요.</div></div>
@@ -230,9 +245,9 @@ function end(){
   $('endBtn').disabled=true;$('status').textContent='저장 중…';
   setTimeout(()=>{capturing=false;micUI(false);
     Object.assign(st.list[st.cur],{sec:Math.round(s*10)/10,j:judge(s),text:(finalTxt+interim).trim()||(lastErr?'(인식 실패: '+errMsg(lastErr)+')':'')});
-    finalTxt='';interim='';st.cur++;save();renderStage()},900);
+    finalTxt='';interim='';st.cur++;save();renderCls();renderStage()},900);
 }
-function renderSum(){
+function renderSum(){$('sumCls').textContent=db.cur;
   const c={ok:0,short:0,over:0,none:0};st.list.forEach(p=>c[p.j||'none']++);
   $('stats').innerHTML=[['ok','#10b981'],['short','#f59e0b'],['over','#ef4444'],['none','#9ca3af']].map(([k,col])=>`<div class="stat" style="background:${col}">${label[k]}<span>${c[k]}명</span></div>`).join('');
   const tb=$('tb');tb.innerHTML='';
@@ -257,5 +272,5 @@ $('testBtn').onclick=()=>{const box=$('micTest');
   try{tRec.start()}catch(e){box.textContent='⚠ '+errMsg('start-failed');tRec=null}};
 $('csvBtn').onclick=()=>{const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
   const csv='﻿순서,이름,발표시간(초),판정,발표내용\n'+st.list.map((p,i)=>[i+1,p.name,p.sec,label[p.j||'none'],p.text].map(q).join(',')).join('\n');
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='발표기록.csv';a.click()};
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='발표기록_'+db.cur+'.csv';a.click()};
 </script></body></html>
