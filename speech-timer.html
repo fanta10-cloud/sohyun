@@ -103,6 +103,12 @@ body.talking #p-talk{flex:1;min-height:0}
 .classbar{display:flex;gap:6px;align-items:center}
 .classbar select{font:inherit;font-family:"Jua",sans-serif;font-size:18px;padding:7px 12px;border:3px solid var(--ink);border-radius:12px;background:var(--yel);color:#2b2d42;box-shadow:0 4px 0 var(--ink);cursor:pointer}
 button.mini{padding:7px 12px;font-size:14px}
+.mats{width:100%;max-width:780px;background:var(--bg);border:3px solid var(--ink);border-radius:18px;padding:1.2vh 14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center}
+.mats .mt{font-family:"Jua",sans-serif;font-size:clamp(14px,2.4vh,20px)}
+.mfile{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--ink);border-radius:12px;background:var(--yel);color:#2b2d42;padding:6px 12px;font-weight:900;font-size:clamp(13px,2.2vh,17px);cursor:pointer;box-shadow:0 3px 0 var(--ink)}
+.mfile .x{background:none;border:0;box-shadow:none;color:#2b2d42;padding:0 0 0 4px;font-size:15px}
+.madd{border:2px dashed var(--ink);border-radius:12px;padding:6px 12px;font-weight:900;cursor:pointer;font-size:clamp(13px,2.2vh,17px)}
+.saved{font-size:13px;color:var(--ok);font-weight:900;opacity:0;transition:opacity .3s}.saved.on{opacity:1}
 </style></head><body>
 <div class="wrap">
 <header>
@@ -122,7 +128,7 @@ button.mini{padding:7px 12px;font-size:14px}
     <textarea id="roster" placeholder="1번 김민준&#10;2번 이서연&#10;3번 박지호"></textarea>
     <div class="row" style="margin-top:12px">
       <label class="sec" style="margin:0"><input type="file" id="file" accept=".txt,.csv" style="display:none"><span class="mute" style="display:inline-block;border:2px solid var(--line);border-radius:12px;padding:11px 18px;font-weight:800;color:var(--ink);cursor:pointer">📂 파일 올리기</span></label>
-      <span class="mute" id="rcount"></span>
+      <span class="mute" id="rcount"></span><span class="saved" id="savedMark">✔ 자동 저장됨</span>
     </div>
   </div>
   <div class="card">
@@ -134,7 +140,7 @@ button.mini{padding:7px 12px;font-size:14px}
     </div>
     <div class="row" style="margin-top:16px"><button class="sec" id="testBtn">🎙 마이크 테스트</button></div>
     <div id="micTest" class="mute">버튼을 누르고 말해 보세요. 여기에 글자가 나오면 음성 인식이 정상입니다.</div>
-    <p class="mute" id="srNote" style="margin:14px 0 0">음성 인식은 Chrome·Edge에서 작동합니다. 처음 시작할 때 마이크 권한을 허용해 주세요. 명단을 새로 적용하면 기존 기록은 초기화됩니다.</p>
+    <p class="mute" id="srNote" style="margin:14px 0 0">음성 인식은 Chrome·Edge에서 작동합니다. 처음 시작할 때 마이크 권한을 허용해 주세요. 입력한 명단·시간은 반별로 자동 저장됩니다. 명단을 새로 적용하면 기존 발표 기록은 초기화됩니다.</p>
   </div>
 </section>
 
@@ -161,34 +167,37 @@ const $=id=>document.getElementById(id);
 const fmt=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const label={ok:'적정',short:'미달',over:'초과',none:'미발표'};
-const blank=()=>({list:[],min:60,max:90,cur:0,sel:null});
+const blank=()=>({list:[],min:60,max:90,cur:0,sel:null,draft:null});
 let db={cur:'1반',classes:{'1반':blank()}};
 try{const d=JSON.parse(localStorage.getItem('speechClasses')||'null');if(d&&d.classes)db=d;else{const o=JSON.parse(localStorage.getItem('speechState2')||'null');if(o)db.classes['1반']=o}}catch(e){}
 let st=db.classes[db.cur]||(db.classes[db.cur]=blank());
 const save=()=>{db.classes[db.cur]=st;try{localStorage.setItem('speechClasses',JSON.stringify(db))}catch(e){}};
-function fillSetup(){$('setCls').textContent=db.cur;$('roster').value=st.list.map(x=>x.name).join('\n');$('minS').value=st.min;$('maxS').value=st.max;try{upd()}catch(e){}}
+function fillSetup(){$('setCls').textContent=db.cur;$('roster').value=st.draft!=null?st.draft:st.list.map(x=>x.name).join('\n');$('minS').value=st.dmin??st.min;$('maxS').value=st.dmax??st.max;try{upd()}catch(e){}}
 function renderCls(){const sel=$('clsSel');sel.innerHTML='';Object.keys(db.classes).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k+(db.classes[k].list.length?` (${db.classes[k].list.filter(x=>x.j).length}/${db.classes[k].list.length})`:'');sel.appendChild(o)});sel.value=db.cur}
 function switchCls(k){db.cur=k;st=db.classes[k];save();renderCls();fillSetup();const on=document.querySelector('.tab.on').dataset.t;tab(on)}
 $('clsSel').onchange=e=>{if(running){alert('발표 중에는 반을 바꿀 수 없습니다.');e.target.value=db.cur;return}switchCls(e.target.value)};
 $('clsAdd').onclick=()=>{if(running)return;const n=(prompt('새 반 이름을 입력하세요 (예: 1학년 3반)')||'').trim();if(!n)return;if(db.classes[n]){alert('이미 있는 반입니다.');return}db.classes[n]=blank();switchCls(n);tab('setup')};
 $('clsRen').onclick=()=>{if(running)return;const n=(prompt('반 이름을 입력하세요',db.cur)||'').trim();if(!n||n===db.cur)return;if(db.classes[n]){alert('이미 있는 반 이름입니다.');return}
-  const c={};Object.keys(db.classes).forEach(k=>c[k===db.cur?n:k]=db.classes[k]);db.classes=c;db.cur=n;save();renderCls();fillSetup();tab(document.querySelector('.tab.on').dataset.t)};
-$('clsDel').onclick=()=>{if(running)return;if(Object.keys(db.classes).length<2){alert('반이 하나뿐이라 지울 수 없습니다.');return}if(!confirm(`'${db.cur}'의 명단과 기록을 모두 지울까요?`))return;delete db.classes[db.cur];switchCls(Object.keys(db.classes)[0])};
+  moveFiles(db.cur,n).catch(()=>{});const c={};Object.keys(db.classes).forEach(k=>c[k===db.cur?n:k]=db.classes[k]);db.classes=c;db.cur=n;save();renderCls();fillSetup();tab(document.querySelector('.tab.on').dataset.t)};
+$('clsDel').onclick=()=>{if(running)return;if(Object.keys(db.classes).length<2){alert('반이 하나뿐이라 지울 수 없습니다.');return}if(!confirm(`'${db.cur}'의 명단과 기록을 모두 지울까요?`))return;dropFiles(db.cur).catch(()=>{});delete db.classes[db.cur];switchCls(Object.keys(db.classes)[0])};
 renderCls();fillSetup();
+setTimeout(()=>{let t='setup';try{t=localStorage.getItem('speechTab')||'setup'}catch(e){}tab(t)},0);
 
-function tab(t){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));if(t==='sum')renderSum();document.body.classList.toggle('talking',t==='talk');if(t==='talk')renderStage()}
+function tab(t){try{localStorage.setItem('speechTab',t)}catch(e){}document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));if(t==='sum')renderSum();document.body.classList.toggle('talking',t==='talk');if(t==='talk')renderStage()}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{if(running){alert('발표 중에는 탭을 바꿀 수 없습니다.');return}tab(b.dataset.t)});
 
 const names=()=>$('roster').value.split(/\r?\n/).map(l=>l.split(/[,\t]/)[0].trim().replace(/^"|"$/g,'')).filter(Boolean);
 const upd=()=>$('rcount').textContent=names().length?`👥 ${names().length}명`:'';
-$('roster').oninput=upd;upd();
-$('file').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('roster').value=names.call(null,$('roster').value=r.result).join('\n');upd()};r.readAsText(f,'utf-8');e.target.value=''};
+let svT;
+function saveDraft(){st.draft=$('roster').value;st.dmin=+$('minS').value||0;st.dmax=+$('maxS').value||1;save();const m=$('savedMark');m.classList.add('on');clearTimeout(svT);svT=setTimeout(()=>m.classList.remove('on'),1200)}
+$('roster').oninput=()=>{upd();saveDraft()};$('minS').oninput=saveDraft;$('maxS').oninput=saveDraft;upd();
+$('file').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('roster').value=names.call(null,$('roster').value=r.result).join('\n');upd();saveDraft()};r.readAsText(f,'utf-8');e.target.value=''};
 $('applyBtn').onclick=()=>{
   const n=names(),mi=+$('minS').value||0,ma=+$('maxS').value||1;
   if(!n.length){alert('명단을 입력해 주세요.');return}
   if(ma<=mi){alert('최대 시간이 최소 시간보다 커야 합니다.');return}
   if(st.list.some(x=>x.j)&&!confirm('기존 발표 기록이 지워집니다. 계속할까요?'))return;
-  st={list:n.map(name=>({name})),min:mi,max:ma,cur:0,sel:null};save();renderCls();tab('talk');
+  st={list:n.map(name=>({name})),min:mi,max:ma,cur:0,sel:null,draft:null};save();renderCls();tab('talk');
 };
 
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -206,14 +215,15 @@ function renderStage(){
   <div class="colL"><span class="order">${esc(db.cur)} · 발표 순서 ${st.cur+1} / ${st.list.length}</span>
   <div class="who">${esc(p.name)}</div>
   <div class="rule">⏱ ${fmt(st.min)} 이상 ~ ${fmt(st.max)} 이하</div>
-  <div class="guide">✅ 본인의 이름을 확인하세요.<br>맞으면 <b>[시작]</b> 버튼을 누르고,<br>발표가 끝나면 <i>[마침]</i> 버튼을 누르세요.</div></div>
+  <div class="guide">✅ 본인의 이름을 확인하세요.<br>맞으면 <b>[시작]</b> 버튼을 누르고,<br>발표가 끝나면 <i>[마침]</i> 버튼을 누르세요.</div>
+  <div class="mats" id="mats"></div></div>
   <div class="colR"><div id="clock">0:00</div>
   <div class="bar"><div class="zone" style="left:${st.min/top*100}%;width:${(st.max-st.min)/top*100}%"></div><div class="fill" id="fill"></div></div>
   <div id="status">${p.j?'이미 발표 완료 ('+fmt(p.sec)+') · 다시 하면 덮어씁니다':''}</div>
   <div class="row" style="justify-content:center"><button class="big" id="startBtn">▶ 시작</button><button class="big" id="endBtn" disabled>■ 마침</button></div>
   <div class="nav"><button class="sec" id="prev" ${st.cur?'':'disabled'}>◀ 이전</button><button class="sec" id="skip">건너뛰기 ▶</button></div></div>
   <div class="mic" id="micDot"><div class="ico"><svg viewBox="0 0 200 200" aria-hidden="true"><rect x="14" y="8" width="172" height="200" rx="86" fill="var(--micfill)" stroke="#2b2d42" stroke-width="8"/><g stroke="#2b2d42" stroke-width="6" opacity=".55"><line x1="34" y1="55" x2="166" y2="55"/><line x1="20" y1="85" x2="180" y2="85"/><line x1="18" y1="115" x2="182" y2="115"/><line x1="18" y1="145" x2="182" y2="145"/><line x1="58" y1="18" x2="58" y2="200"/><line x1="100" y1="12" x2="100" y2="200"/><line x1="142" y1="18" x2="142" y2="200"/></g><ellipse cx="62" cy="48" rx="16" ry="26" fill="#fff" opacity=".6"/></svg></div><span id="micTxt">시작을 누르면 마이크가 켜져요</span></div>`;
-  $('startBtn').onclick=start;$('endBtn').onclick=end;
+  $('startBtn').onclick=start;$('endBtn').onclick=end;renderMats($('mats'),p.name);
   $('prev').onclick=()=>{st.cur--;save();renderStage()};$('skip').onclick=()=>{st.cur++;save();renderStage()};
 }
 // 음성 인식은 한 번 켜면 계속 유지(허용 팝업 반복 방지). 발표 중일 때만 기록.
@@ -256,9 +266,31 @@ function renderSum(){$('sumCls').textContent=db.cur;
     tr.onclick=()=>{st.sel=i;save();renderSum()};tb.appendChild(tr)});
   const d=$('detail');if(st.sel==null||!st.list[st.sel]){d.style.display='none';return}
   const p=st.list[st.sel];d.style.display='block';
-  d.innerHTML=`<h2>${st.sel+1}. ${esc(p.name)} <span class="pill p-${p.j||'none'}">${label[p.j||'none']}</span></h2><p class="mute">발표 시간: ${p.j?fmt(p.sec)+' ('+p.sec+'초)':'-'} · 기준 ${st.min}~${st.max}초 · 글자 수 ${(p.text||'').length}자</p><div class="txt">${p.j?(esc(p.text)||'(인식된 음성 없음)'):'아직 발표하지 않았습니다.'}</div>`;
+  d.innerHTML=`<h2>${st.sel+1}. ${esc(p.name)} <span class="pill p-${p.j||'none'}">${label[p.j||'none']}</span></h2><p class="mute">발표 시간: ${p.j?fmt(p.sec)+' ('+p.sec+'초)':'-'} · 기준 ${st.min}~${st.max}초 · 글자 수 ${(p.text||'').length}자</p><div class="txt">${p.j?(esc(p.text)||'(인식된 음성 없음)'):'아직 발표하지 않았습니다.'}</div><div class="mats" id="sumMats" style="margin-top:14px;max-width:none;justify-content:flex-start"></div>`;renderMats($('sumMats'),p.name);
 }
 function errMsg(e){return({'not-allowed':'마이크 권한이 차단됨','service-not-allowed':'이 화면에서는 음성 인식이 막혀 있음 — 파일을 내려받아 Chrome으로 여세요','no-speech':'소리가 들리지 않음','audio-capture':'마이크를 찾을 수 없음','network':'인터넷 연결 필요','start-failed':'음성 인식을 시작하지 못함'})[e]||e}
+// ── 발표 자료 보관 (브라우저 IndexedDB) ──
+let idb=null;
+function openDB(){return new Promise((ok,no)=>{if(idb)return ok(idb);const q=indexedDB.open('speechFiles',1);q.onupgradeneeded=()=>{const s=q.result.createObjectStore('files',{keyPath:'id',autoIncrement:true});s.createIndex('key','key')};q.onsuccess=()=>ok(idb=q.result);q.onerror=()=>no(q.error)})}
+const fkey=n=>db.cur+'::'+n;
+async function listFiles(n){const d=await openDB();return new Promise(ok=>{const r=d.transaction('files').objectStore('files').index('key').getAll(fkey(n));r.onsuccess=()=>ok(r.result||[]);r.onerror=()=>ok([])})}
+async function addFiles(n,fs){const d=await openDB();return new Promise((ok,no)=>{const tx=d.transaction('files','readwrite');for(const f of fs)tx.objectStore('files').add({key:fkey(n),name:f.name,type:f.type,blob:f});tx.oncomplete=ok;tx.onerror=()=>no(tx.error)})}
+async function delFile(id){const d=await openDB();return new Promise(ok=>{const tx=d.transaction('files','readwrite');tx.objectStore('files').delete(id);tx.oncomplete=ok})}
+async function moveFiles(o,n){const d=await openDB();const tx=d.transaction('files','readwrite'),s=tx.objectStore('files');s.openCursor().onsuccess=e=>{const c=e.target.result;if(!c)return;const v=c.value;if(v.key.startsWith(o+'::')){v.key=n+'::'+v.key.slice(o.length+2);c.update(v)}c.continue()}}
+async function dropFiles(cls){const d=await openDB();const s=d.transaction('files','readwrite').objectStore('files');s.openCursor().onsuccess=e=>{const c=e.target.result;if(!c)return;if(c.value.key.startsWith(cls+'::'))c.delete();c.continue()}}
+const ico=n=>/\.pptx?$/i.test(n)?'📊':/\.(hwpx?)$/i.test(n)?'📝':/\.pdf$/i.test(n)?'📕':/\.(png|jpe?g|gif|webp)$/i.test(n)?'🖼':'📄';
+function openFile(f){const url=URL.createObjectURL(f.blob);
+  if(/\.(pdf|png|jpe?g|gif|webp)$/i.test(f.name)){window.open(url,'_blank')}
+  else{const a=document.createElement('a');a.href=url;a.download=f.name;document.body.appendChild(a);a.click();a.remove()}
+  setTimeout(()=>URL.revokeObjectURL(url),60000)}
+async function renderMats(box,n){if(!box)return;let fs=[];try{fs=await listFiles(n)}catch(e){box.innerHTML='<span class="mute">이 브라우저에서는 자료 보관을 쓸 수 없어요.</span>';return}
+  box.innerHTML='<span class="mt">📎 발표 자료</span>';
+  fs.forEach(f=>{const b=document.createElement('span');b.className='mfile';b.title='클릭하면 열립니다';b.innerHTML=`${ico(f.name)} ${esc(f.name)}<button class="x" title="삭제">✕</button>`;
+    b.onclick=e=>{if(e.target.classList.contains('x')){e.stopPropagation();if(running)return;if(confirm(`'${f.name}' 자료를 지울까요?`))delFile(f.id).then(()=>renderMats(box,n));return}openFile(f)};box.appendChild(b)});
+  const l=document.createElement('label');l.className='madd';l.innerHTML='＋ 자료 추가<input type="file" multiple accept=".ppt,.pptx,.hwp,.hwpx,.pdf,.doc,.docx,.key,.png,.jpg,.jpeg" style="display:none">';
+  l.querySelector('input').onchange=async e=>{const fl=[...e.target.files];if(!fl.length)return;try{await addFiles(n,fl)}catch(err){alert('저장하지 못했습니다: '+err)}renderMats(box,n)};
+  box.appendChild(l);if(!fs.length){const s=document.createElement('span');s.className='mute';s.textContent='(없음)';box.insertBefore(s,l)}}
+
 let tRec=null;
 $('testBtn').onclick=()=>{const box=$('micTest');
   if(!SR){box.textContent='⚠ 이 브라우저는 음성 인식을 지원하지 않습니다. Chrome 또는 Edge로 여세요.';return}
