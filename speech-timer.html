@@ -434,7 +434,7 @@ function paintTV(){if(!tv||tv.closed){tv=null;updTvBtn();return}const box=tv.doc
   else box.innerHTML=`<div class="card"><small>${esc(db.cur)}</small>${esc(curName())}</div>`}
 
 // ── 자료 한꺼번에 넣기 ──
-const core=n=>String(n).replace(/^\s*\d+\s*(번|\.|\)|-|_)?\s*/,'').replace(/[\s_\-]+/g,'');
+const core=n=>String(n).split(/[\s_\-.,()\[\]]+/).filter(t=>t&&!/^\d+(반|번|학년|조|모둠)?$/.test(t)).map(t=>t.replace(/^\d+/,'')).join('');
 let pending=[];
 async function addOrReplace(n,f){const ex=await listFiles(n);for(const x of ex)if(!x.url&&x.name===f.name)await delFile(x.id);await addFiles(n,[f])}
 async function bulkAdd(files){
@@ -442,7 +442,7 @@ async function bulkAdd(files){
   const ns=names();if(!ns.length){alert('먼저 위의 명단을 입력해 주세요.');return}
   const cs=ns.map(n=>({n,c:core(n)})),cnt={};cs.forEach(x=>cnt[x.c]=(cnt[x.c]||0)+1);
   const ok=[],miss=[];$('bulkRes').innerHTML='⏳ 넣는 중…';
-  for(const f of files){const base=f.name.replace(/\.[^.]+$/,'').replace(/[\s_\-]+/g,'');let best=null;
+  for(const f of files){const base=f.name.replace(/\.[^.]+$/,'').replace(/[\s_\-.,()\[\]]+/g,'');let best=null;
     for(const x of cs)if(x.c&&base.includes(x.c)&&(!best||x.c.length>best.c.length))best=x;
     if(best&&cnt[best.c]===1){try{await addOrReplace(best.n,f);ok.push([best.n,f.name])}catch(e){miss.push(f)}}else miss.push(f)}
   pending=pending.filter(p=>!files.includes(p)).concat(miss);showBulk(ok);renderBulkStat()}
