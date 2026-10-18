@@ -135,6 +135,13 @@ button.mini{padding:7px 12px;font-size:14px}
 .stage.hasmat .mic{left:auto!important;right:18px!important;bottom:2.2vh!important;transform:none!important}.stage.hasmat #mats>.mute:last-of-type{display:none}.stage.hasmat .mic .ico{display:none}.stage.hasmat .mic #micTxt{position:static;font-size:13px}
 body.matmode header{margin-bottom:6px!important}body.matmode h1{font-size:20px}body.matmode .tab{font-size:14px;padding:4px 12px;box-shadow:0 2px 0 var(--ink)}
 body.matmode .classbar select{font-size:14px;padding:3px 8px;box-shadow:0 2px 0 var(--ink)}body.matmode button.mini{padding:3px 8px;font-size:12px;box-shadow:0 2px 0 var(--ink)}
+.bdrop{border:3px dashed var(--ink);border-radius:18px;padding:22px;text-align:center;background:var(--bg);font-weight:900;font-size:18px;transition:.15s}
+.bdrop.drag{background:rgba(59,181,255,.18);border-color:var(--c2);transform:scale(1.01)}
+.bpick{display:inline-block;border:2px solid var(--ink);border-radius:12px;padding:7px 14px;margin:8px 4px 0;cursor:pointer;background:var(--card);font-size:15px;box-shadow:0 3px 0 var(--ink)}
+.bres{margin-top:14px;font-size:15px;line-height:1.7}.bres .ok{color:var(--ok);font-weight:900}.bres .no{color:var(--bad);font-weight:900}
+.bres .un{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}.bres select{font:inherit;padding:4px 8px;border-radius:10px;border:2px solid var(--ink)}
+.bstat{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}.bstat span{border:2px solid var(--ink);border-radius:99px;padding:3px 11px;font-size:14px;font-weight:900}
+.bstat .y{background:#bbf7d0;color:#14532d}.bstat .n{background:var(--line);color:var(--mute)}
 .saved{font-size:13px;color:var(--ok);font-weight:900;opacity:0;transition:opacity .3s}.saved.on{opacity:1}
 </style></head><body>
 <div class="wrap">
@@ -157,6 +164,16 @@ body.matmode .classbar select{font-size:14px;padding:3px 8px;box-shadow:0 2px 0 
       <label class="sec" style="margin:0"><input type="file" id="file" accept=".txt,.csv" style="display:none"><span class="mute" style="display:inline-block;border:2px solid var(--line);border-radius:12px;padding:11px 18px;font-weight:800;color:var(--ink);cursor:pointer">📂 파일 올리기</span></label>
       <span class="mute" id="rcount"></span><span class="saved" id="savedMark">✔ 자동 저장됨</span>
     </div>
+  </div>
+  <div class="card">
+    <h2>📎 발표 자료 한꺼번에 넣기 · <span id="bulkCls"></span></h2>
+    <p class="mute" style="margin-top:-6px">파일 이름에 학생 이름이 들어 있으면 그 학생에게 자동으로 들어갑니다. (예: 김민준.pdf, 3번_김민준_발표.pptx) 위 명단을 먼저 입력해 주세요.</p>
+    <div class="bdrop" id="bulkDrop">📂 학생 자료 파일이나 폴더를 여기에 통째로 끌어다 놓으세요<br>
+      <label class="bpick">📄 파일 선택<input type="file" id="bulkFile" multiple style="display:none"></label>
+      <label class="bpick">📁 폴더 선택<input type="file" id="bulkDir" webkitdirectory multiple style="display:none"></label>
+      <span class="bpick" id="bulkClear">🗑 이 반 자료 모두 지우기</span></div>
+    <div class="bres" id="bulkRes"></div>
+    <div class="bstat" id="bulkStat"></div>
   </div>
   <div class="card">
     <h2>시간 제한</h2>
@@ -199,7 +216,7 @@ let db={cur:'1반',classes:{'1반':blank()}};
 try{const d=JSON.parse(localStorage.getItem('speechClasses')||'null');if(d&&d.classes)db=d;else{const o=JSON.parse(localStorage.getItem('speechState2')||'null');if(o)db.classes['1반']=o}}catch(e){}
 let st=db.classes[db.cur]||(db.classes[db.cur]=blank());
 const save=()=>{db.classes[db.cur]=st;try{localStorage.setItem('speechClasses',JSON.stringify(db))}catch(e){}};
-function fillSetup(){$('setCls').textContent=db.cur;$('roster').value=st.draft!=null?st.draft:st.list.map(x=>x.name).join('\n');$('minS').value=st.dmin??st.min;$('maxS').value=st.dmax??st.max;try{upd()}catch(e){}}
+function fillSetup(){$('setCls').textContent=db.cur;$('bulkCls').textContent=db.cur;$('bulkRes').innerHTML='';setTimeout(()=>renderBulkStat&&renderBulkStat(),0);$('roster').value=st.draft!=null?st.draft:st.list.map(x=>x.name).join('\n');$('minS').value=st.dmin??st.min;$('maxS').value=st.dmax??st.max;try{upd()}catch(e){}}
 function renderCls(){const sel=$('clsSel');sel.innerHTML='';Object.keys(db.classes).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k+(db.classes[k].list.length?` (${db.classes[k].list.filter(x=>x.j).length}/${db.classes[k].list.length})`:'');sel.appendChild(o)});sel.value=db.cur}
 function switchCls(k){db.cur=k;st=db.classes[k];save();renderCls();fillSetup();const on=document.querySelector('.tab.on').dataset.t;tab(on)}
 $('clsSel').onchange=e=>{if(running){alert('발표 중에는 반을 바꿀 수 없습니다.');e.target.value=db.cur;return}switchCls(e.target.value)};
@@ -217,7 +234,7 @@ const names=()=>$('roster').value.split(/\r?\n/).map(l=>l.split(/[,\t]/)[0].trim
 const upd=()=>$('rcount').textContent=names().length?`👥 ${names().length}명`:'';
 let svT;
 function saveDraft(){st.draft=$('roster').value;st.dmin=+$('minS').value||0;st.dmax=+$('maxS').value||1;save();const m=$('savedMark');m.classList.add('on');clearTimeout(svT);svT=setTimeout(()=>m.classList.remove('on'),1200)}
-$('roster').oninput=()=>{upd();saveDraft()};$('minS').oninput=saveDraft;$('maxS').oninput=saveDraft;upd();
+let bsT;$('roster').oninput=()=>{upd();saveDraft();clearTimeout(bsT);bsT=setTimeout(renderBulkStat,600)};$('minS').oninput=saveDraft;$('maxS').oninput=saveDraft;upd();
 $('file').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('roster').value=names.call(null,$('roster').value=r.result).join('\n');upd();saveDraft()};r.readAsText(f,'utf-8');e.target.value=''};
 $('applyBtn').onclick=()=>{
   const n=names(),mi=+$('minS').value||0,ma=+$('maxS').value||1;
@@ -330,7 +347,7 @@ async function addFiles(n,fs){const d=await openDB();return new Promise((ok,no)=
 async function addLink(n,url,name){const d=await openDB();return new Promise((ok,no)=>{const tx=d.transaction('files','readwrite');tx.objectStore('files').add({key:fkey(n),name,url});tx.oncomplete=ok;tx.onerror=()=>no(tx.error)})}
 async function delFile(id){const d=await openDB();return new Promise(ok=>{const tx=d.transaction('files','readwrite');tx.objectStore('files').delete(id);tx.oncomplete=ok})}
 async function moveFiles(o,n){const d=await openDB();const tx=d.transaction('files','readwrite'),s=tx.objectStore('files');s.openCursor().onsuccess=e=>{const c=e.target.result;if(!c)return;const v=c.value;if(v.key.startsWith(o+'::')){v.key=n+'::'+v.key.slice(o.length+2);c.update(v)}c.continue()}}
-async function dropFiles(cls){const d=await openDB();const s=d.transaction('files','readwrite').objectStore('files');s.openCursor().onsuccess=e=>{const c=e.target.result;if(!c)return;if(c.value.key.startsWith(cls+'::'))c.delete();c.continue()}}
+async function dropFiles(cls){const d=await openDB();return new Promise(ok=>{const tx=d.transaction('files','readwrite');tx.objectStore('files').openCursor().onsuccess=e=>{const c=e.target.result;if(!c)return;if(c.value.key.startsWith(cls+'::'))c.delete();c.continue()};tx.oncomplete=ok})}
 const ico=n=>/\.pptx?$/i.test(n)?'📊':/\.(hwpx?)$/i.test(n)?'📝':/\.pdf$/i.test(n)?'📕':/\.(png|jpe?g|gif|webp)$/i.test(n)?'🖼':'📄';
 function openFile(f){if(f.url){window.open(f.url,'_blank');return}const url=URL.createObjectURL(f.blob);
   if(/\.(pdf|png|jpe?g|gif|webp)$/i.test(f.name)){window.open(url,'_blank')}
@@ -415,6 +432,38 @@ function paintTV(){if(!tv||tv.closed){tv=null;updTvBtn();return}const box=tv.doc
   if(v.type==='img')box.innerHTML=`<img src="${v.src}" alt="">`;
   else if(v.type==='frame')box.innerHTML=`<iframe src="${esc(v.src)}" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
   else box.innerHTML=`<div class="card"><small>${esc(db.cur)}</small>${esc(curName())}</div>`}
+
+// ── 자료 한꺼번에 넣기 ──
+const core=n=>String(n).replace(/^\s*\d+\s*(번|\.|\)|-|_)?\s*/,'').replace(/[\s_\-]+/g,'');
+let pending=[];
+async function addOrReplace(n,f){const ex=await listFiles(n);for(const x of ex)if(!x.url&&x.name===f.name)await delFile(x.id);await addFiles(n,[f])}
+async function bulkAdd(files){
+  files=files.filter(f=>f&&f.name&&!f.name.startsWith('.')&&!/^(thumbs\.db|desktop\.ini)$/i.test(f.name));if(!files.length)return;
+  const ns=names();if(!ns.length){alert('먼저 위의 명단을 입력해 주세요.');return}
+  const cs=ns.map(n=>({n,c:core(n)})),cnt={};cs.forEach(x=>cnt[x.c]=(cnt[x.c]||0)+1);
+  const ok=[],miss=[];$('bulkRes').innerHTML='⏳ 넣는 중…';
+  for(const f of files){const base=f.name.replace(/\.[^.]+$/,'').replace(/[\s_\-]+/g,'');let best=null;
+    for(const x of cs)if(x.c&&base.includes(x.c)&&(!best||x.c.length>best.c.length))best=x;
+    if(best&&cnt[best.c]===1){try{await addOrReplace(best.n,f);ok.push([best.n,f.name])}catch(e){miss.push(f)}}else miss.push(f)}
+  pending=pending.filter(p=>!files.includes(p)).concat(miss);showBulk(ok);renderBulkStat()}
+function showBulk(ok){const ns=names(),opt='<option value="">학생 선택</option>'+ns.map((n,i)=>`<option value="${i}">${esc(n)}</option>`).join('');
+  let h=ok.length?`<div class="ok">✅ ${ok.length}개 자동 배정 완료</div><div class="mute">${ok.map(([n,f])=>esc(core(n))+' ← '+esc(f)).join(' · ')}</div>`:'';
+  if(pending.length)h+=`<div class="no" style="margin-top:8px">❓ 이름을 찾지 못한 파일 ${pending.length}개 — 직접 골라 주세요</div>`+pending.map((f,i)=>`<div class="un">📄 ${esc(f.name)} → <select data-i="${i}">${opt}</select><button class="sec mini" data-i="${i}">넣기</button><button class="sec mini" data-x="${i}">빼기</button></div>`).join('');
+  const box=$('bulkRes');box.innerHTML=h;
+  box.querySelectorAll('button[data-i]').forEach(b=>b.onclick=async()=>{const i=+b.dataset.i,v=box.querySelector(`select[data-i="${i}"]`).value;if(v===''){alert('학생을 골라 주세요.');return}
+    await addOrReplace(ns[+v],pending[i]);pending.splice(i,1);showBulk([]);renderBulkStat()});
+  box.querySelectorAll('button[data-x]').forEach(b=>b.onclick=()=>{pending.splice(+b.dataset.x,1);showBulk([])})}
+async function renderBulkStat(){const box=$('bulkStat');if(!box)return;const ns=names();if(!ns.length){box.innerHTML='';return}
+  let have=0;const parts=[];for(const n of ns){let c=0;try{c=(await listFiles(n)).length}catch(e){}if(c)have++;parts.push(`<span class="${c?'y':'n'}">${esc(core(n)||n)}${c?' '+c:''}</span>`)}
+  box.innerHTML=`<div class="mute" style="width:100%">자료 현황: ${have} / ${ns.length}명</div>`+parts.join('')}
+async function collectDropped(dt){const es=[...(dt.items||[])].map(i=>i.webkitGetAsEntry&&i.webkitGetAsEntry()).filter(Boolean);if(!es.length)return[...dt.files];const out=[];
+  async function walk(e){if(e.isFile)out.push(await new Promise((ok,no)=>e.file(ok,no)));else if(e.isDirectory){const rd=e.createReader();let b;do{b=await new Promise((ok,no)=>rd.readEntries(ok,no));for(const c of b)await walk(c)}while(b.length)}}
+  for(const e of es)await walk(e);return out}
+{const bd=$('bulkDrop');
+  bd.ondragover=e=>{e.preventDefault();bd.classList.add('drag')};bd.ondragleave=e=>{if(!bd.contains(e.relatedTarget))bd.classList.remove('drag')};
+  bd.ondrop=async e=>{e.preventDefault();bd.classList.remove('drag');bulkAdd(await collectDropped(e.dataTransfer))};
+  $('bulkFile').onchange=e=>{bulkAdd([...e.target.files]);e.target.value=''};$('bulkDir').onchange=e=>{bulkAdd([...e.target.files]);e.target.value=''};
+  $('bulkClear').onclick=async()=>{if(!confirm(`'${db.cur}'에 넣은 발표 자료를 모두 지울까요?`))return;await dropFiles(db.cur);pending=[];$('bulkRes').innerHTML='🗑 모두 지웠습니다.';cur.key=null;renderBulkStat()}}
 
 let tRec=null;
 $('testBtn').onclick=()=>{const box=$('micTest');
