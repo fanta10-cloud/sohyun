@@ -108,6 +108,8 @@ button.mini{padding:7px 12px;font-size:14px}
 .mfile{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--ink);border-radius:12px;background:var(--yel);color:#2b2d42;padding:6px 12px;font-weight:900;font-size:clamp(13px,2.2vh,17px);cursor:pointer;box-shadow:0 3px 0 var(--ink)}
 .mfile .x{background:none;border:0;box-shadow:none;color:#2b2d42;padding:0 0 0 4px;font-size:15px}
 .madd{border:2px dashed var(--ink);border-radius:12px;padding:6px 12px;font-weight:900;cursor:pointer;font-size:clamp(13px,2.2vh,17px)}
+.mats.drag{outline:4px dashed var(--c2);background:rgba(59,181,255,.15)}
+.mlink{background:#dbeafe}
 .saved{font-size:13px;color:var(--ok);font-weight:900;opacity:0;transition:opacity .3s}.saved.on{opacity:1}
 </style></head><body>
 <div class="wrap">
@@ -275,21 +277,36 @@ function openDB(){return new Promise((ok,no)=>{if(idb)return ok(idb);const q=ind
 const fkey=n=>db.cur+'::'+n;
 async function listFiles(n){const d=await openDB();return new Promise(ok=>{const r=d.transaction('files').objectStore('files').index('key').getAll(fkey(n));r.onsuccess=()=>ok(r.result||[]);r.onerror=()=>ok([])})}
 async function addFiles(n,fs){const d=await openDB();return new Promise((ok,no)=>{const tx=d.transaction('files','readwrite');for(const f of fs)tx.objectStore('files').add({key:fkey(n),name:f.name,type:f.type,blob:f});tx.oncomplete=ok;tx.onerror=()=>no(tx.error)})}
+async function addLink(n,url,name){const d=await openDB();return new Promise((ok,no)=>{const tx=d.transaction('files','readwrite');tx.objectStore('files').add({key:fkey(n),name,url});tx.oncomplete=ok;tx.onerror=()=>no(tx.error)})}
 async function delFile(id){const d=await openDB();return new Promise(ok=>{const tx=d.transaction('files','readwrite');tx.objectStore('files').delete(id);tx.oncomplete=ok})}
 async function moveFiles(o,n){const d=await openDB();const tx=d.transaction('files','readwrite'),s=tx.objectStore('files');s.openCursor().onsuccess=e=>{const c=e.target.result;if(!c)return;const v=c.value;if(v.key.startsWith(o+'::')){v.key=n+'::'+v.key.slice(o.length+2);c.update(v)}c.continue()}}
 async function dropFiles(cls){const d=await openDB();const s=d.transaction('files','readwrite').objectStore('files');s.openCursor().onsuccess=e=>{const c=e.target.result;if(!c)return;if(c.value.key.startsWith(cls+'::'))c.delete();c.continue()}}
 const ico=n=>/\.pptx?$/i.test(n)?'📊':/\.(hwpx?)$/i.test(n)?'📝':/\.pdf$/i.test(n)?'📕':/\.(png|jpe?g|gif|webp)$/i.test(n)?'🖼':'📄';
-function openFile(f){const url=URL.createObjectURL(f.blob);
+function openFile(f){if(f.url){window.open(f.url,'_blank');return}const url=URL.createObjectURL(f.blob);
   if(/\.(pdf|png|jpe?g|gif|webp)$/i.test(f.name)){window.open(url,'_blank')}
   else{const a=document.createElement('a');a.href=url;a.download=f.name;document.body.appendChild(a);a.click();a.remove()}
   setTimeout(()=>URL.revokeObjectURL(url),60000)}
 async function renderMats(box,n){if(!box)return;let fs=[];try{fs=await listFiles(n)}catch(e){box.innerHTML='<span class="mute">이 브라우저에서는 자료 보관을 쓸 수 없어요.</span>';return}
   box.innerHTML='<span class="mt">📎 발표 자료</span>';
-  fs.forEach(f=>{const b=document.createElement('span');b.className='mfile';b.title='클릭하면 열립니다';b.innerHTML=`${ico(f.name)} ${esc(f.name)}<button class="x" title="삭제">✕</button>`;
+  fs.forEach(f=>{const b=document.createElement('span');b.className='mfile'+(f.url?' mlink':'');b.title=f.url||'클릭하면 열립니다';b.innerHTML=`${f.url?'🔗':ico(f.name)} ${esc(f.name)}<button class="x" title="삭제">✕</button>`;
     b.onclick=e=>{if(e.target.classList.contains('x')){e.stopPropagation();if(running)return;if(confirm(`'${f.name}' 자료를 지울까요?`))delFile(f.id).then(()=>renderMats(box,n));return}openFile(f)};box.appendChild(b)});
   const l=document.createElement('label');l.className='madd';l.innerHTML='＋ 자료 추가<input type="file" multiple accept=".ppt,.pptx,.hwp,.hwpx,.pdf,.doc,.docx,.key,.png,.jpg,.jpeg" style="display:none">';
   l.querySelector('input').onchange=async e=>{const fl=[...e.target.files];if(!fl.length)return;try{await addFiles(n,fl)}catch(err){alert('저장하지 못했습니다: '+err)}renderMats(box,n)};
-  box.appendChild(l);if(!fs.length){const s=document.createElement('span');s.className='mute';s.textContent='(없음)';box.insertBefore(s,l)}}
+  box.appendChild(l);
+  const lk=document.createElement('span');lk.className='madd';lk.textContent='🔗 링크 추가';
+  lk.onclick=async()=>{let u=(prompt('자료 링크(주소)를 붙여 넣으세요\n예: 구글 슬라이드, 캔바, 패들렛, 유튜브 주소')||'').trim();if(!u)return;if(!/^https?:\/\//i.test(u))u='https://'+u;
+    const nm=(prompt('링크 이름 (비워 두면 주소로 표시)','')||'').trim()||u.replace(/^https?:\/\//,'').slice(0,30);
+    try{await addLink(n,u,nm)}catch(e){alert('저장하지 못했습니다')}renderMats(box,n)};
+  box.appendChild(lk);
+  const hint=document.createElement('span');hint.className='mute';hint.style.fontSize='12px';hint.textContent='· 파일을 이 칸에 끌어다 놓아도 됩니다';box.appendChild(hint);
+  box.ondragover=e=>{e.preventDefault();box.classList.add('drag')};
+  box.ondragleave=e=>{if(!box.contains(e.relatedTarget))box.classList.remove('drag')};
+  box.ondrop=async e=>{e.preventDefault();box.classList.remove('drag');
+    const fl=[...e.dataTransfer.files];
+    if(fl.length){try{await addFiles(n,fl)}catch(err){alert('저장하지 못했습니다: '+err)}}
+    else{const u=(e.dataTransfer.getData('text/uri-list')||e.dataTransfer.getData('text/plain')||'').trim().split('\n')[0];if(/^https?:\/\//i.test(u))await addLink(n,u,u.replace(/^https?:\/\//,'').slice(0,30))}
+    renderMats(box,n)};
+  if(!fs.length){const s=document.createElement('span');s.className='mute';s.textContent='(없음)';box.insertBefore(s,l)}}
 
 let tRec=null;
 $('testBtn').onclick=()=>{const box=$('micTest');
