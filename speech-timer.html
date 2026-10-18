@@ -115,7 +115,26 @@ button.mini{padding:7px 12px;font-size:14px}
 .pv img{max-width:100%;max-height:30vh;border:3px solid var(--ink);border-radius:12px;background:#fff;display:block}
 .pv .lk{background:var(--bg);border:3px dashed var(--ink);border-radius:14px;padding:2vh 16px;font-weight:900}
 .pvnav{display:flex;gap:10px;align-items:center;font-family:"Jua",sans-serif;font-size:clamp(14px,2.4vh,20px)}.pvnav button{padding:4px 16px;font-size:16px}
-.stage.hasmat .guide{display:none}.stage.hasmat .who{font-size:clamp(30px,7vh,70px)!important}
+/* 자료 모드: 자료 크게, 나머지 작게 */
+#p-talk .stage.hasmat{display:grid;grid-template-columns:minmax(0,1fr) clamp(230px,23vw,330px);grid-template-rows:auto auto auto auto auto auto 1fr auto;
+  grid-template-areas:"pv order" "pv who" "pv clock" "pv bar" "pv status" "pv btns" "pv nav" "mats mats";column-gap:2vw;row-gap:1vh;padding:1.5vh 1.5vw!important;align-items:center}
+.stage.hasmat .colL,.stage.hasmat .colR{display:contents}
+.stage.hasmat .rule,.stage.hasmat .guide{display:none}
+.stage.hasmat .order{grid-area:order;justify-self:center;font-size:14px}
+.stage.hasmat .who{grid-area:who;font-size:clamp(26px,5.5vh,50px)!important;-webkit-text-stroke:1px var(--ink);text-shadow:2px 2px 0 var(--yel);text-align:center}
+.stage.hasmat #clock{grid-area:clock;font-size:clamp(56px,13vh,120px);text-align:center}
+.stage.hasmat .bar{grid-area:bar;height:14px}
+.stage.hasmat #status{grid-area:status;font-size:clamp(13px,2.2vh,18px);text-align:center}
+.stage.hasmat .colR>.row{grid-area:btns;gap:8px;flex-wrap:nowrap}.stage.hasmat .big{font-size:clamp(16px,2.8vh,22px);padding:1.2vh 1.2vw;flex:1}
+.stage.hasmat .nav{grid-area:nav;align-self:start;flex-wrap:wrap;gap:6px}.stage.hasmat .nav button{font-size:12px;padding:4px 8px}
+.stage.hasmat #mats{grid-area:mats;max-width:calc(100% - 200px);justify-self:start;padding:4px 10px;border-width:2px;justify-content:flex-start}
+.stage.hasmat #mats .mt,.stage.hasmat #mats .mfile,.stage.hasmat #mats .madd{font-size:13px;padding:3px 9px}
+.stage.hasmat #pv{grid-area:pv;max-width:none;height:100%;min-height:0;align-self:stretch}
+.stage.hasmat #pv img{flex:1;min-height:0;max-height:none;width:100%;object-fit:contain;background:#1f2030}
+.stage.hasmat #pv .lk{margin:auto}
+.stage.hasmat .mic{left:auto!important;right:18px!important;bottom:2.2vh!important;transform:none!important}.stage.hasmat #mats>.mute:last-of-type{display:none}.stage.hasmat .mic .ico{display:none}.stage.hasmat .mic #micTxt{position:static;font-size:13px}
+body.matmode header{margin-bottom:6px!important}body.matmode h1{font-size:20px}body.matmode .tab{font-size:14px;padding:4px 12px;box-shadow:0 2px 0 var(--ink)}
+body.matmode .classbar select{font-size:14px;padding:3px 8px;box-shadow:0 2px 0 var(--ink)}body.matmode button.mini{padding:3px 8px;font-size:12px;box-shadow:0 2px 0 var(--ink)}
 .saved{font-size:13px;color:var(--ok);font-weight:900;opacity:0;transition:opacity .3s}.saved.on{opacity:1}
 </style></head><body>
 <div class="wrap">
@@ -191,7 +210,7 @@ $('clsDel').onclick=()=>{if(running)return;if(Object.keys(db.classes).length<2){
 renderCls();fillSetup();
 setTimeout(()=>{let t='setup';try{t=localStorage.getItem('speechTab')||'setup'}catch(e){}tab(t)},0);
 
-function tab(t){try{localStorage.setItem('speechTab',t)}catch(e){}document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));if(t==='sum')renderSum();document.body.classList.toggle('talking',t==='talk');if(t==='talk')renderStage()}
+function tab(t){try{localStorage.setItem('speechTab',t)}catch(e){}document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));if(t==='sum')renderSum();document.body.classList.toggle('talking',t==='talk');if(t!=='talk')document.body.classList.remove('matmode');if(t==='talk')renderStage()}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{if(running){alert('발표 중에는 탭을 바꿀 수 없습니다.');return}tab(b.dataset.t)});
 
 const names=()=>$('roster').value.split(/\r?\n/).map(l=>l.split(/[,\t]/)[0].trim().replace(/^"|"$/g,'')).filter(Boolean);
@@ -363,8 +382,8 @@ async function drawMat(){const my=++drawSeq,f=cur.mat;let v={type:'none'};
   if(my!==drawSeq){if(v.own)URL.revokeObjectURL(v.src);return}
   const old=cur.view;cur.view=v;paintPreview();paintTV();if(old&&old.own)setTimeout(()=>URL.revokeObjectURL(old.src),3000)}
 function markChips(){document.querySelectorAll('#mats .mfile').forEach(b=>b.classList.toggle('act',!!cur.mat&&+b.dataset.id===cur.mat.id))}
-function paintPreview(){const pv=$('pv'),sb=$('stageBox');if(!pv)return;const v=cur.view;
-  const has=!!cur.mat&&(v.type!=='none'||cur.msg);pv.classList.toggle('on',has);sb.classList.toggle('hasmat',has);if(!has){pv.innerHTML='';return}
+function paintPreview(){const pv=$('pv'),sb=$('stageBox');if(!pv){document.body.classList.remove('matmode');return}const v=cur.view;
+  const has=!!cur.mat&&(v.type!=='none'||cur.msg);pv.classList.toggle('on',has);sb.classList.toggle('hasmat',has);document.body.classList.toggle('matmode',has);if(!has){pv.innerHTML='';return}
   if(cur.msg&&v.type==='none'){pv.innerHTML=`<div class="lk">${esc(cur.msg)}</div>`;return}
   if(v.type==='img')pv.innerHTML=`<img src="${v.src}" alt="">`+(cur.pdf?`<div class="pvnav"><button class="sec" id="pgP">◀</button><span>${cur.page} / ${cur.pages}</span><button class="sec" id="pgN">▶</button></div>`:'');
   else pv.innerHTML=`<div class="lk">🔗 ${esc(cur.mat.name)}<br><span class="mute">TV 화면에 링크를 띄웠어요. 안 나오면 </span><button class="sec mini" id="pvOpen">직접 열기</button></div>`;
