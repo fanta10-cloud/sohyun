@@ -135,7 +135,14 @@ button.mini{padding:7px 12px;font-size:14px}
 .stage.hasmat .mic{left:auto!important;right:18px!important;bottom:2.2vh!important;transform:none!important}.stage.hasmat #mats>.mute:last-of-type{display:none}.stage.hasmat .mic .ico{display:none}.stage.hasmat .mic #micTxt{position:static;font-size:13px}
 body.matmode .wrap{max-width:none;padding:6px 10px 8px!important}
 body.matmode #p-talk .card{border-width:2px;box-shadow:0 4px 0 var(--ink);border-radius:16px;margin-bottom:0}
-#p-talk .stage.hasmat{grid-template-columns:minmax(0,1fr) clamp(200px,17vw,270px)!important;padding:8px 10px!important;column-gap:12px!important}
+#p-talk .stage.hasmat{grid-template-columns:minmax(0,1fr) clamp(200px,17vw,270px);padding:8px 10px!important;column-gap:10px!important}
+.stage.hasmat .order{font-size:min(calc(var(--tw,260px)*.06),22px)!important}
+.stage.hasmat .who{font-size:min(calc(var(--tw,260px)*.16),10vh)!important}
+.stage.hasmat #clock{font-size:min(calc(var(--tw,260px)*.42),26vh)!important}
+.stage.hasmat .bar{height:min(calc(var(--tw,260px)*.05),22px)!important}
+.stage.hasmat #status{font-size:min(calc(var(--tw,260px)*.07),3.4vh)!important}
+.stage.hasmat .big{font-size:min(calc(var(--tw,260px)*.085),4.4vh)!important;padding:1.4vh 1vw!important}
+.stage.hasmat .nav button{font-size:min(calc(var(--tw,260px)*.045),15px)!important}
 .stage.hasmat #pv img{border-width:2px;border-radius:8px}
 .stage.hasmat .pvnav{gap:8px}.stage.hasmat .pvnav button{padding:2px 14px}
 body.matmode header{margin-bottom:6px!important}body.matmode h1{font-size:20px}body.matmode .tab{font-size:14px;padding:4px 12px;box-shadow:0 2px 0 var(--ink)}
@@ -436,12 +443,22 @@ async function drawMat(){const my=++drawSeq,f=cur.mat;let v={type:'none'};
   const old=cur.view;cur.view=v;paintPreview();paintTV();if(old&&old.own)setTimeout(()=>URL.revokeObjectURL(old.src),3000)}
 function markChips(){document.querySelectorAll('#mats .mfile').forEach(b=>b.classList.toggle('act',!!cur.mat&&+b.dataset.id===cur.mat.id))}
 function paintPreview(){const pv=$('pv'),sb=$('stageBox');if(!pv){document.body.classList.remove('matmode');return}const v=cur.view;
-  const has=!!cur.mat&&(v.type!=='none'||cur.msg);pv.classList.toggle('on',has);sb.classList.toggle('hasmat',has);document.body.classList.toggle('matmode',has);if(!has){pv.innerHTML='';return}
+  const has=!!cur.mat&&(v.type!=='none'||cur.msg);pv.classList.toggle('on',has);sb.classList.toggle('hasmat',has);document.body.classList.toggle('matmode',has);if(!has){pv.innerHTML='';layoutMat();return}
   if(cur.msg&&v.type==='none'){pv.innerHTML=`<div class="lk">${esc(cur.msg)}</div>`;return}
   if(v.type==='img')pv.innerHTML=`<img src="${v.src}" alt="">`+(cur.pdf?`<div class="pvnav"><button class="sec" id="pgP">◀</button><span>${cur.page} / ${cur.pages}</span><button class="sec" id="pgN">▶</button></div>`:'');
   else pv.innerHTML=`<div class="lk">🔗 ${esc(cur.mat.name)}<br><span class="mute">${tv&&!tv.closed?'TV 화면에 링크를 띄웠어요. TV에 안 보이면':'링크를 열려면'} </span><button class="sec mini" id="pvOpen">📺 ${tv&&!tv.closed?'TV에 새 창으로 띄우기':'새 창으로 열기'}</button></div>`;
+  {const im=pv.querySelector('img');if(im){if(im.complete)requestAnimationFrame(layoutMat);else im.onload=layoutMat}else layoutMat()}
   if($('pgP')){$('pgP').onclick=()=>page(-1);$('pgN').onclick=()=>page(1);$('pgP').disabled=cur.page<=1;$('pgN').disabled=cur.page>=cur.pages}
   if($('pvOpen'))$('pvOpen').onclick=()=>{const w=window.open(cur.mat.url,'speechLink',tv&&!tv.closed&&tvFeat?tvFeat:'');if(w)w.focus()}}
+function layoutMat(){const sb=$('stageBox'),pv=$('pv');if(!sb)return;
+  const img=pv&&pv.querySelector('img');
+  if(!sb.classList.contains('hasmat')||!img){sb.style.gridTemplateColumns='';sb.style.removeProperty('--tw');return}
+  const cs=getComputedStyle(sb),W=sb.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight),gap=10;
+  const ratio=img.naturalWidth?img.naturalWidth/img.naturalHeight:16/9;
+  const H=pv.clientHeight-(pv.querySelector('.pvnav')?40:0);
+  const minT=Math.max(300,W*.27);let sw=Math.min(H*ratio,W-gap-minT);sw=Math.max(sw,W*.45);const tw=Math.floor(W-gap-sw);
+  sb.style.gridTemplateColumns=`${Math.floor(sw)}px ${tw}px`;sb.style.setProperty('--tw',tw+'px')}
+addEventListener('resize',()=>layoutMat());
 function page(d){if(!cur.pdf)return;const n=Math.max(1,Math.min(cur.pages,cur.page+d));if(n===cur.page)return;cur.page=n;drawMat()}
 function keyNav(e){if(!document.body.classList.contains('talking')||!cur.pdf)return;const t=e.target.tagName;if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT')return;
   if(['ArrowRight','ArrowDown','PageDown'].includes(e.key)){e.preventDefault();page(1)}else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();page(-1)}}
