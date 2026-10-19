@@ -130,9 +130,14 @@ button.mini{padding:7px 12px;font-size:14px}
 .stage.hasmat #mats{grid-area:mats;max-width:calc(100% - 200px);justify-self:start;padding:4px 10px;border-width:2px;justify-content:flex-start}
 .stage.hasmat #mats .mt,.stage.hasmat #mats .mfile,.stage.hasmat #mats .madd{font-size:13px;padding:3px 9px}
 .stage.hasmat #pv{grid-area:pv;max-width:none;height:100%;min-height:0;align-self:stretch}
-.stage.hasmat #pv img{flex:1;min-height:0;max-height:none;width:100%;object-fit:contain;background:#1f2030}
+.stage.hasmat #pv{justify-content:center}.stage.hasmat #pv img{flex:0 1 auto;min-height:0;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;background:#fff}.stage.hasmat #pv:has(.pvnav) img{max-height:calc(100% - 40px)}
 .stage.hasmat #pv .lk{margin:auto}
 .stage.hasmat .mic{left:auto!important;right:18px!important;bottom:2.2vh!important;transform:none!important}.stage.hasmat #mats>.mute:last-of-type{display:none}.stage.hasmat .mic .ico{display:none}.stage.hasmat .mic #micTxt{position:static;font-size:13px}
+body.matmode .wrap{max-width:none;padding:6px 10px 8px!important}
+body.matmode #p-talk .card{border-width:2px;box-shadow:0 4px 0 var(--ink);border-radius:16px;margin-bottom:0}
+#p-talk .stage.hasmat{grid-template-columns:minmax(0,1fr) clamp(200px,17vw,270px)!important;padding:8px 10px!important;column-gap:12px!important}
+.stage.hasmat #pv img{border-width:2px;border-radius:8px}
+.stage.hasmat .pvnav{gap:8px}.stage.hasmat .pvnav button{padding:2px 14px}
 body.matmode header{margin-bottom:6px!important}body.matmode h1{font-size:20px}body.matmode .tab{font-size:14px;padding:4px 12px;box-shadow:0 2px 0 var(--ink)}
 body.matmode .classbar select{font-size:14px;padding:3px 8px;box-shadow:0 2px 0 var(--ink)}body.matmode button.mini{padding:3px 8px;font-size:12px;box-shadow:0 2px 0 var(--ink)}
 .bdrop{border:3px dashed var(--ink);border-radius:18px;padding:22px;text-align:center;background:var(--bg);font-weight:900;font-size:18px;transition:.15s}
@@ -152,6 +157,13 @@ body.matmode .classbar select{font-size:14px;padding:3px 8px;box-shadow:0 2px 0 
 #backBtn{background:var(--yel);color:#2b2d42}
 .who.arrive{animation:arrive .7s cubic-bezier(.2,1.4,.4,1)}
 @keyframes arrive{0%{transform:scale(.6);opacity:0}100%{transform:none;opacity:1}}
+.fnote{margin:0 0 14px;border:3px solid var(--ink);border-radius:16px;background:#fff7d6;color:#2b2d42;padding:12px 16px;box-shadow:0 4px 0 var(--ink)}
+.fnote h3{margin:0 0 8px;font:400 18px "Jua",sans-serif}
+.fnote ul{margin:0;padding:0;list-style:none;display:grid;gap:7px}
+.fnote li{display:grid;grid-template-columns:auto 1fr;gap:8px;line-height:1.55;font-size:15px}
+.fnote li::before{content:"★";color:#f59e0b;font-size:17px;line-height:1.4}
+.fnote .tg{display:inline-block;font-weight:900;border-radius:8px;padding:0 7px;margin-right:4px;color:#fff}
+.fnote .t1{background:#16a34a}.fnote .t2{background:#3b82f6}.fnote small{color:#6b6e85}
 .saved{font-size:13px;color:var(--ok);font-weight:900;opacity:0;transition:opacity .3s}.saved.on{opacity:1}
 </style></head><body>
 <div class="wrap">
@@ -178,6 +190,12 @@ body.matmode .classbar select{font-size:14px;padding:3px 8px;box-shadow:0 2px 0 
   <div class="card">
     <h2>📎 발표 자료 한꺼번에 넣기 · <span id="bulkCls"></span></h2>
     <p class="mute" style="margin-top:-6px">파일 이름에 학생 이름이 들어 있으면 그 학생에게 자동으로 들어갑니다. (예: 김민준.pdf, 3번_김민준_발표.pptx) 위 명단을 먼저 입력해 주세요.</p>
+    <div class="fnote"><h3>📌 자료 형식별 보이는 화면</h3><ul>
+      <li><span><span class="tg t1">PDF · 이미지</span> 발표자 노트북에서 <b>타이머 옆에 나란히</b> 크게 보이고, TV에도 함께 나옵니다. 페이지는 ◀ ▶ 버튼이나 방향키로 넘겨요.</span></li>
+      <li><span><span class="tg t2">PPT · 한글 · 링크</span> 노트북 발표 화면에는 보이지 않고 <b>TV 화면에만</b> 띄웁니다. 화면 조작은 <b>마우스 커서를 TV 화면으로 옮겨서</b> 해 주세요.</span></li>
+      <li><span>링크는 여기서 넣을 수 없어요. 각 학생 발표 화면의 <b>🔗 링크 추가</b>로 첨부해 주세요.</span></li>
+      <li><span>PPT도 타이머 옆에서 함께 보고 싶다면 <b>PDF로 저장해서</b> 올려 주세요. <small>(파워포인트 → 다른 이름으로 저장 → PDF)</small></span></li>
+    </ul></div>
     <div class="bdrop" id="bulkDrop">📂 학생 자료 파일이나 폴더를 여기에 통째로 끌어다 놓으세요<br>
       <label class="bpick">📄 파일 선택<input type="file" id="bulkFile" multiple style="display:none"></label>
       <label class="bpick">📁 폴더 선택<input type="file" id="bulkDir" webkitdirectory multiple style="display:none"></label>
@@ -359,7 +377,7 @@ async function delFile(id){const d=await openDB();return new Promise(ok=>{const 
 async function moveFiles(o,n){const d=await openDB();const tx=d.transaction('files','readwrite'),s=tx.objectStore('files');s.openCursor().onsuccess=e=>{const c=e.target.result;if(!c)return;const v=c.value;if(v.key.startsWith(o+'::')){v.key=n+'::'+v.key.slice(o.length+2);c.update(v)}c.continue()}}
 async function dropFiles(cls){const d=await openDB();return new Promise(ok=>{const tx=d.transaction('files','readwrite');tx.objectStore('files').openCursor().onsuccess=e=>{const c=e.target.result;if(!c)return;if(c.value.key.startsWith(cls+'::'))c.delete();c.continue()};tx.oncomplete=ok})}
 const ico=n=>/\.pptx?$/i.test(n)?'📊':/\.(hwpx?)$/i.test(n)?'📝':/\.pdf$/i.test(n)?'📕':/\.(png|jpe?g|gif|webp)$/i.test(n)?'🖼':'📄';
-function openFile(f){if(f.url){window.open(f.url,'_blank');return}const url=URL.createObjectURL(f.blob);
+function openFile(f){if(f.url){const w=window.open(f.url,'speechLink',typeof tv!=='undefined'&&tv&&!tv.closed&&tvFeat?tvFeat:'');if(w)w.focus();return}const url=URL.createObjectURL(f.blob);
   if(/\.(pdf|png|jpe?g|gif|webp)$/i.test(f.name)){window.open(url,'_blank')}
   else{const a=document.createElement('a');a.href=url;a.download=f.name;document.body.appendChild(a);a.click();a.remove()}
   setTimeout(()=>URL.revokeObjectURL(url),60000)}
@@ -387,8 +405,9 @@ async function renderMats(box,n){if(!box)return;let fs=[];try{fs=await listFiles
   if(box.id==='mats'){const k=fkey(n);if(cur.key!==k||!cur.mat||!fs.some(x=>x.id===cur.mat.id)){cur.key=k;selectMat(fs.find(viewable)||null)}else{paintPreview();markChips()}}}
 
 // ── 발표 자료 보기 + TV 화면 ──
-let tv=null,cur={key:null,mat:null,pdf:null,page:1,pages:1,url:null,view:{type:'none'},msg:''},selSeq=0,drawSeq=0;
-const viewable=f=>!!f.url||/\.(pdf|png|jpe?g|gif|webp)$/i.test(f.name);
+let tvFeat='',tv=null,cur={key:null,mat:null,pdf:null,page:1,pages:1,url:null,view:{type:'none'},msg:''},selSeq=0,drawSeq=0;
+const embeddable=u=>/docs\.google\.com\/presentation|youtube\.com\/watch|youtu\.be\//i.test(u);
+const viewable=f=>(f.url?embeddable(f.url):false)||!f.url&&/\.(pdf|png|jpe?g|gif|webp)$/i.test(f.name);
 const curName=()=>st.cur>=st.list.length?'🎉 발표가 모두 끝났습니다':(st.list[st.cur]||{}).name||'';
 function loadPdfJs(){return window.pdfjsLib?Promise.resolve():new Promise((ok,no)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';sc.onload=()=>{pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';ok()};sc.onerror=no;document.head.appendChild(sc)})}
 function embedUrl(u){let m=u.match(/docs\.google\.com\/presentation\/d\/([^/?#]+)/);if(m)return`https://docs.google.com/presentation/d/${m[1]}/embed?start=false&loop=false&rm=minimal`;
@@ -413,9 +432,9 @@ function paintPreview(){const pv=$('pv'),sb=$('stageBox');if(!pv){document.body.
   const has=!!cur.mat&&(v.type!=='none'||cur.msg);pv.classList.toggle('on',has);sb.classList.toggle('hasmat',has);document.body.classList.toggle('matmode',has);if(!has){pv.innerHTML='';return}
   if(cur.msg&&v.type==='none'){pv.innerHTML=`<div class="lk">${esc(cur.msg)}</div>`;return}
   if(v.type==='img')pv.innerHTML=`<img src="${v.src}" alt="">`+(cur.pdf?`<div class="pvnav"><button class="sec" id="pgP">◀</button><span>${cur.page} / ${cur.pages}</span><button class="sec" id="pgN">▶</button></div>`:'');
-  else pv.innerHTML=`<div class="lk">🔗 ${esc(cur.mat.name)}<br><span class="mute">TV 화면에 링크를 띄웠어요. 안 나오면 </span><button class="sec mini" id="pvOpen">직접 열기</button></div>`;
+  else pv.innerHTML=`<div class="lk">🔗 ${esc(cur.mat.name)}<br><span class="mute">${tv&&!tv.closed?'TV 화면에 링크를 띄웠어요. TV에 안 보이면':'링크를 열려면'} </span><button class="sec mini" id="pvOpen">📺 ${tv&&!tv.closed?'TV에 새 창으로 띄우기':'새 창으로 열기'}</button></div>`;
   if($('pgP')){$('pgP').onclick=()=>page(-1);$('pgN').onclick=()=>page(1);$('pgP').disabled=cur.page<=1;$('pgN').disabled=cur.page>=cur.pages}
-  if($('pvOpen'))$('pvOpen').onclick=()=>openFile(cur.mat)}
+  if($('pvOpen'))$('pvOpen').onclick=()=>{const w=window.open(cur.mat.url,'speechLink',tv&&!tv.closed&&tvFeat?tvFeat:'');if(w)w.focus()}}
 function page(d){if(!cur.pdf)return;const n=Math.max(1,Math.min(cur.pages,cur.page+d));if(n===cur.page)return;cur.page=n;drawMat()}
 function keyNav(e){if(!document.body.classList.contains('talking')||!cur.pdf)return;const t=e.target.tagName;if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT')return;
   if(['ArrowRight','ArrowDown','PageDown'].includes(e.key)){e.preventDefault();page(1)}else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();page(-1)}}
@@ -430,7 +449,7 @@ function updTvBtn(){const b=$('tvBtn');if(b)b.textContent=tv&&!tv.closed?'📺 T
 async function toggleTV(){if(tv&&!tv.closed){tv.close();tv=null;updTvBtn();return}
   let feat='popup,width=1280,height=720';
   try{if('getScreenDetails' in window){const sd=await getScreenDetails();const ext=sd.screens.find(x=>x!==sd.currentScreen);if(ext)feat=`popup,left=${ext.availLeft},top=${ext.availTop},width=${ext.availWidth},height=${ext.availHeight}`}}catch(e){}
-  tv=window.open('','speechTV',feat);
+  tvFeat=feat;tv=window.open('','speechTV',feat);
   if(!tv){alert('창이 열리지 않았어요. 버튼을 한 번 더 누르거나, 주소창 오른쪽의 팝업 차단 아이콘에서 "항상 허용"을 선택해 주세요.');updTvBtn();return}
   const d=tv.document;d.open();d.write(TVHTML);d.close();
   d.addEventListener('keydown',keyNav);
