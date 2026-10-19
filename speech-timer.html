@@ -55,7 +55,7 @@ th,td{border-bottom:2px solid var(--line);padding:12px 8px;text-align:left;verti
 th{font-size:14px;color:var(--mute)}
 tr.sel td{background:rgba(59,181,255,.12)}tbody tr{cursor:pointer}tbody tr:hover td{background:rgba(255,212,59,.15)}
 .pill{display:inline-block;padding:3px 12px;border-radius:99px;font-size:13px;font-weight:900;color:#fff;white-space:nowrap;border:2px solid var(--ink)}
-.p-ok{background:var(--ok)}.p-short{background:var(--warn)}.p-over{background:var(--bad)}.p-none{background:#a1a1aa}
+.p-sub{background:#7c3aed}.p-ok{background:var(--ok)}.p-short{background:var(--warn)}.p-over{background:var(--bad)}.p-none{background:#a1a1aa}
 .detail{margin-top:18px;border-top:3px dashed var(--line);padding-top:16px}
 .detail .txt{white-space:pre-wrap;line-height:1.8;font-size:17px;background:var(--bg);border:2px solid var(--line);border-radius:14px;padding:16px}
 .stats{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:18px}
@@ -227,7 +227,7 @@ body.matmode .classbar select{font-size:14px;padding:3px 8px;box-shadow:0 2px 0 
       <button class="sec" id="csvBtn">CSV 저장</button>
     </div>
     <div class="stats" id="stats"></div>
-    <div class="tw"><table><thead><tr><th>순서</th><th>이름</th><th>발표 시간</th><th>판정</th><th>발표 내용 (미리보기)</th></tr></thead><tbody id="tb"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>순서</th><th>이름</th><th>발표 시간</th><th>판정</th><th>발표 자료</th><th>발표 내용 (미리보기)</th></tr></thead><tbody id="tb"></tbody></table></div>
     <p class="mute">행을 누르면 해당 학생의 발표 내용 전체를 볼 수 있습니다.</p>
     <div class="detail" id="detail" style="display:none"></div>
   </div>
@@ -359,12 +359,19 @@ function renderSum(){$('sumCls').textContent=db.cur;
   $('stats').innerHTML=[['ok','#10b981'],['short','#f59e0b'],['over','#ef4444'],['none','#9ca3af']].map(([k,col])=>`<div class="stat" style="background:${col}">${label[k]}<span>${c[k]}명</span></div>`).join('');
   const tb=$('tb');tb.innerHTML='';
   st.list.forEach((p,i)=>{const tr=document.createElement('tr');if(st.sel===i)tr.className='sel';
-    const t=p.text||'';tr.innerHTML=`<td>${i+1}</td><td><b>${esc(p.name)}</b></td><td>${p.j?fmt(p.sec)+' <span class="mute">('+p.sec+'초)</span>':'-'}</td><td><span class="pill p-${p.j||'none'}">${label[p.j||'none']}</span></td><td>${p.j?esc(t.slice(0,40))+(t.length>40?'…':'')||'<span class="mute">(인식된 음성 없음)</span>':''}</td>`;
+    const t=p.text||'';tr.innerHTML=`<td>${i+1}</td><td><b>${esc(p.name)}</b></td><td>${p.j?fmt(p.sec)+' <span class="mute">('+p.sec+'초)</span>':'-'}</td><td><span class="pill p-${p.j||'none'}">${label[p.j||'none']}</span></td><td class="mcell" data-i="${i}"><span class="mute">…</span></td><td>${p.j?esc(t.slice(0,40))+(t.length>40?'…':'')||'<span class="mute">(인식된 음성 없음)</span>':''}</td>`;
     tr.onclick=()=>{st.sel=i;save();renderSum()};tb.appendChild(tr)});
+  fillMatCells();
   const d=$('detail');if(st.sel==null||!st.list[st.sel]){d.style.display='none';return}
   const p=st.list[st.sel];d.style.display='block';
   d.innerHTML=`<h2>${st.sel+1}. ${esc(p.name)} <span class="pill p-${p.j||'none'}">${label[p.j||'none']}</span></h2><p class="mute">발표 시간: ${p.j?fmt(p.sec)+' ('+p.sec+'초)':'-'} · 기준 ${st.min}~${st.max}초 · 글자 수 ${(p.text||'').length}자</p><div class="txt">${p.j?(esc(p.text)||'(인식된 음성 없음)'):'아직 발표하지 않았습니다.'}</div><div class="mats" id="sumMats" style="margin-top:14px;max-width:none;justify-content:flex-start"></div>`;renderMats($('sumMats'),p.name);
 }
+async function matInfo(){return Promise.all(st.list.map(p=>listFiles(p.name).catch(()=>[])))}
+let fillSeq=0;
+async function fillMatCells(){const my=++fillSeq,info=await matInfo();if(my!==fillSeq)return;let n=0;
+  document.querySelectorAll('#tb .mcell').forEach(td=>{const fs=info[+td.dataset.i]||[];if(fs.length)n++;
+    td.innerHTML=fs.length?`<span class="pill p-sub" title="${esc(fs.map(f=>f.name).join('\n'))}">📎 제출함</span> <span class="mute">${fs.length}개</span>`:'<span class="mute">미제출</span>'});
+  const sb=$('stats');if(sb){const old=sb.querySelector('.st-sub');if(old)old.remove();sb.insertAdjacentHTML('beforeend',`<div class="stat st-sub" style="background:#7c3aed">자료 제출<span>${n}명</span></div>`)}}
 function errMsg(e){return({'not-allowed':'마이크 권한이 차단됨','service-not-allowed':'이 화면에서는 음성 인식이 막혀 있음 — 파일을 내려받아 Chrome으로 여세요','no-speech':'소리가 들리지 않음','audio-capture':'마이크를 찾을 수 없음','network':'인터넷 연결 필요','start-failed':'음성 인식을 시작하지 못함'})[e]||e}
 // ── 발표 자료 보관 (브라우저 IndexedDB) ──
 let idb=null;
@@ -522,7 +529,7 @@ $('testBtn').onclick=()=>{const box=$('micTest');
   tRec.onerror=e=>{box.textContent='⚠ '+errMsg(e.error)};
   tRec.onend=()=>{$('testBtn').textContent='🎙 마이크 테스트';tRec=null};
   try{tRec.start()}catch(e){box.textContent='⚠ '+errMsg('start-failed');tRec=null}};
-$('csvBtn').onclick=()=>{const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
-  const csv='﻿순서,이름,발표시간(초),판정,발표내용\n'+st.list.map((p,i)=>[i+1,p.name,p.sec,label[p.j||'none'],p.text].map(q).join(',')).join('\n');
+$('csvBtn').onclick=async()=>{const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';const info=await matInfo();
+  const csv='\ufeff순서,이름,발표시간(초),판정,발표자료,자료목록,발표내용\n'+st.list.map((p,i)=>{const fs=info[i]||[];return[i+1,p.name,p.sec,label[p.j||'none'],fs.length?'제출함':'미제출',fs.map(f=>f.url?f.name+' ('+f.url+')':f.name).join(' / '),p.text].map(q).join(',')}).join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='발표기록_'+db.cur+'.csv';a.click()};
 </script></body></html>
