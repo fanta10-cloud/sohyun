@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>공통수학 福 Lotto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+/* =========================================================
+   ★ 선생님 설정 (여기만 고치면 됩니다)
+   ========================================================= */
+const CONFIG = {
+  SCRIPT_URL: '',                 // Apps Script 웹앱 주소. 비워두면 '체험 모드'(이 기기에만 저장)
+  SUBJECT: '공통수학2',
+  EXAM: '2차 지필평가',
+  ROUND: '002',                   // 회차 (1학기 001회 → 2학기 002회)
+  ISSUE_DATE: '2026-11-09',       // 발행일
+  DEADLINE: '2026-11-13T23:59:59+09:00', // 응모 마감 일시 (Code.gs 와 같게)
+  DRAW_DATE: '정기고사 성적처리 이후',   // 추첨일 (날짜 'YYYY-MM-DD' 또는 문구)
+  PAY_DATE: '발표 후 1주일 이내',     // 지급기한 (날짜 또는 문구)
+  CLASSES: ['8', '9', '10', '11'],
+  WINNERS: 1,                     // 반별 당첨: 1등만
+  TEACHER: '양소현쌤'
+};
+</script>
+<style>
+:root{
+  --pink:#f6b3dd; --pink-d:#e77fbf; --pink-l:#fde8f4;
+  --ink:#141414; --gray:#8a8a8a; --line:#d9d9d9; --bg:#f4f1ee;
+  --gold:#f5c542; --red:#e5484d; --green:#2f9e6b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:'Noto Sans KR',system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+body{min-height:100vh;padding:16px 12px 48px}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input{font-family:inherit}
+.hidden{display:none!important}
+.wrap{max-width:460px;margin:0 auto}
+
+/* ---------- 복권 용지 ---------- */
+.ticket{position:relative;background:#fff;border-radius:6px;box-shadow:0 6px 24px rgba(0,0,0,.10);padding:22px 52px 26px 20px;overflow:hidden}
+.strip{position:absolute;top:0;right:0;bottom:0;width:38px;background:var(--pink);display:flex;align-items:center;justify-content:center}
+.strip span{writing-mode:vertical-rl;color:#fff;font-size:13px;letter-spacing:2px;font-weight:500;white-space:nowrap}
+.wm{position:absolute;font-family:'Black Han Sans';color:var(--pink-l);font-size:96px;pointer-events:none;z-index:0;letter-spacing:-2px}
+.ticket>*:not(.strip):not(.wm):not(.stamp){position:relative;z-index:1}
+.head{display:flex;align-items:flex-end;gap:6px;flex-wrap:wrap}
+.subj{font-family:'Jua';font-size:30px;line-height:1}
+.subj small{font-size:17px;margin-left:4px}
+.logo{display:flex;align-items:center;justify-content:center;gap:10px;margin:8px 0 2px}
+.fu{width:40px;height:40px;border:3px solid #111;border-radius:4px;display:grid;place-items:center;font-size:24px;font-weight:900;box-shadow:inset 0 0 0 2px #fff,inset 0 0 0 4px #111;font-family:serif}
+.lotto{font-family:'Black Han Sans';font-size:56px;letter-spacing:-2px;line-height:1}
+.round{text-align:center;font-size:26px;font-weight:500;margin:4px 0 10px}
+.meta{font-size:15px;line-height:1.7;padding-left:6px}
+.meta b{display:inline-block;width:72px;font-weight:500;letter-spacing:3px}
+.dash{border-top:2px dashed #bbb;margin:14px -20px 14px -20px}
+
+/* ---------- 상태 바 ---------- */
+.status{display:flex;justify-content:space-between;align-items:center;background:#111;color:#fff;border-radius:999px;padding:8px 14px;font-size:13px;margin-bottom:12px}
+.status .dday{color:var(--gold);font-weight:700}
+.demo{background:#fff3cd;color:#7a5a00;border-radius:8px;padding:8px 12px;font-size:12.5px;margin-bottom:10px;line-height:1.5}
+
+/* ---------- 입력 ---------- */
+.lbl{font-size:13px;color:#555;font-weight:700;margin:12px 0 6px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:2px solid #111;border-radius:999px;padding:6px 14px;font-weight:700;font-size:15px}
+.chip.on{background:#111;color:#fff}
+.row2{display:grid;grid-template-columns:90px 1fr;gap:8px}
+.inp{width:100%;border:2px solid #111;border-radius:8px;padding:9px 10px;font-size:16px;background:#fff}
+.inp:focus{outline:none;border-color:var(--pink-d)}
+
+/* ---------- OMR 마킹 ---------- */
+.sec{text-align:center;font-weight:700;margin:6px 0 8px;font-size:15px}
+.sec .big{display:block;font-family:'Black Han Sans';font-size:34px;letter-spacing:1px;margin-top:2px}
+.sec .big.empty{color:#ccc}
+.omr{display:grid;grid-template-columns:44px 1fr;align-items:center;row-gap:9px;margin-bottom:6px}
+.omr .k{font-size:17px;text-align:center;font-weight:500}
+.omr .k.sm{font-size:11px;font-weight:700;color:var(--pink-d);line-height:1.1}
+.digits{display:grid;grid-template-columns:repeat(10,1fr);gap:3px}
+.digits.two{grid-template-columns:repeat(10,1fr)}
+.d{aspect-ratio:1;max-width:34px;width:100%;margin:auto;border:2px solid #111;border-radius:50%;font-size:14px;font-weight:700;display:grid;place-items:center;transition:transform .08s,background .12s}
+.d:active{transform:scale(.88)}
+.d.on{background:#111;color:#fff;box-shadow:0 0 0 2px var(--pink)}
+.d:disabled{opacity:.18;cursor:not-allowed}
+.divider{display:flex;align-items:center;gap:8px;margin:14px 0 8px;color:#333;font-weight:700}
+.divider:before,.divider:after{content:"";flex:1;border-top:2px dashed #333}
+.rule{font-size:12.5px;color:#555;background:var(--pink-l);border-radius:8px;padding:10px 12px;line-height:1.6;margin-top:14px}
+.btn{width:100%;margin-top:16px;padding:15px;border-radius:12px;background:#111;color:#fff;font-size:18px;font-weight:900;letter-spacing:1px}
+.btn:disabled{background:#bbb}
+.btn.pink{background:var(--pink-d)}
+.btn.ghost{background:#fff;color:#111;border:2px solid #111;font-size:15px;padding:11px}
+.err{color:var(--red);font-size:13px;font-weight:700;margin-top:8px;min-height:18px;text-align:center}
+
+/* ---------- 모달 ---------- */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
+.box{background:#fff;border-radius:16px;padding:22px;max-width:360px;width:100%}
+.box h3{font-size:19px;margin-bottom:12px}
+.box table{width:100%;font-size:15px;border-collapse:collapse}
+.box td{padding:6px 2px;border-bottom:1px solid #eee}
+.box td:last-child{text-align:right;font-weight:700}
+.box .warn{font-size:12.5px;color:var(--red);margin-top:10px}
+.box .btns{display:grid;grid-template-columns:1fr 1.4fr;gap:8px;margin-top:4px}
+
+/* ---------- 발권된 복권 ---------- */
+.issued .stamp{position:absolute;right:56px;top:150px;transform:rotate(-14deg);border:4px solid var(--red);color:var(--red);font-weight:900;font-size:20px;padding:4px 10px;border-radius:8px;opacity:.85;z-index:2;letter-spacing:2px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:15px}
+.kv dt{color:#666}
+.kv dd{font-weight:700;text-align:right}
+.balls{display:flex;justify-content:center;gap:8px;margin:12px 0 4px}
+.ball{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:18px;color:#fff;box-shadow:inset -4px -6px 0 rgba(0,0,0,.15);animation:pop .45s backwards}
+.ball.dot{width:14px;background:none;box-shadow:none;color:#111;font-size:26px;align-items:end}
+@keyframes pop{0%{transform:scale(0) rotate(-90deg)}80%{transform:scale(1.15)}100%{transform:scale(1)}}
+.b0{background:#fbc400}.b1{background:#69c8f2}.b2{background:#ff7272}.b3{background:#aaa}.b4{background:#b0d840}
+.code{font-family:ui-monospace,Menlo,monospace;text-align:center;font-size:13px;letter-spacing:2px;margin-top:4px}
+.barcode{display:block;margin:10px auto 0;height:44px;width:100%}
+.save{text-align:center;font-size:13px;color:var(--gray);margin-top:10px}
+.foot{text-align:center;font-size:12px;color:var(--gray);margin-top:16px}
+.foot a{color:var(--gray)}
+.fadein{animation:fade .5s}
+@keyframes fade{from{opacity:0;transform:translateY(12px)}to{opacity:1}}
+
+/* ================= 관리자 ================= */
+body.admin{padding:0;background:#f7f7f8}
+.adm{max-width:1100px;margin:0 auto;padding:20px}
+.adm h1{font-family:'Black Han Sans';font-size:30px;display:flex;align-items:center;gap:10px}
+.adm h1 small{font-family:'Noto Sans KR';font-size:14px;color:#777;font-weight:500}
+.tabs{display:flex;gap:6px;margin:16px 0;border-bottom:2px solid #111}
+.tab{padding:10px 16px;font-weight:700;border-radius:10px 10px 0 0}
+.tab.on{background:#111;color:#fff}
+.card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:14px}
+.card h2{font-size:17px;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pill{display:inline-block;background:var(--pink-l);color:#b0368a;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.stat b{display:block;font-size:28px;font-family:'Black Han Sans'}
+.stat span{font-size:13px;color:#666}
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t th{background:#f2f2f2;padding:8px 6px;text-align:center;font-weight:700;position:sticky;top:0}
+table.t td{padding:7px 6px;border-bottom:1px solid #eee;text-align:center}
+table.t tr.w1 td{background:#fff6d6}
+table.t tr.w2 td{background:#f1f5ff}
+table.t tr.w3 td{background:#fff0f0}
+.sinp{width:72px;border:1.5px solid #bbb;border-radius:6px;padding:5px;text-align:center;font-size:14px}
+.abtn{padding:8px 14px;border-radius:8px;background:#111;color:#fff;font-weight:700;font-size:14px}
+.abtn.sub{background:#eee;color:#111}
+.abtn.pink{background:var(--pink-d)}
+.abtn.mini{padding:4px 8px;font-size:12px}
+.abtn.danger{background:var(--red);color:#fff}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+textarea.paste{width:100%;min-height:90px;border:1.5px solid #bbb;border-radius:8px;padding:8px;font-family:ui-monospace,monospace;font-size:13px}
+.hint{font-size:12.5px;color:#777;line-height:1.6}
+.medal{font-size:18px}
+.login{max-width:340px;margin:12vh auto;background:#fff;border-radius:16px;padding:26px;box-shadow:0 6px 24px rgba(0,0,0,.08);text-align:center}
+.login h2{font-family:'Black Han Sans';font-size:28px;margin-bottom:14px}
+.qrs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.qrc{background:#fff;border:2px solid #111;border-radius:14px;padding:16px;text-align:center;page-break-inside:avoid}
+.qrc .t1{font-family:'Jua';font-size:22px}
+.qrc .t2{font-family:'Black Han Sans';font-size:34px;margin:-2px 0 8px}
+.qrc .q{display:flex;justify-content:center;margin:6px 0}
+.qrc .u{font-size:10px;color:#888;word-break:break-all;margin-top:6px}
+
+/* 발표 화면 */
+.show{position:fixed;inset:0;background:radial-gradient(circle at 50% 30%,#2a1f3d,#0b0712);color:#fff;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center}
+.show .ttl{font-family:'Black Han Sans';font-size:clamp(28px,5vw,56px);color:var(--pink)}
+.show .sub{opacity:.75;margin-top:6px;font-size:clamp(14px,2vw,20px)}
+.show .stage{margin:30px 0;min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.show .rank{font-family:'Black Han Sans';font-size:clamp(40px,8vw,96px);color:var(--gold);animation:pop .6s}
+.show .who{font-size:clamp(32px,6vw,72px);font-weight:900;margin-top:6px;animation:fade .8s .3s backwards}
+.show .det{font-size:clamp(14px,2vw,22px);opacity:.85;margin-top:12px;animation:fade .8s .6s backwards}
+.show .ctrl{display:flex;gap:10px}
+.show .ctrl button{background:#fff;color:#111;padding:12px 22px;border-radius:999px;font-weight:900;font-size:16px}
+.show .ctrl button.x{background:transparent;color:#fff;border:2px solid #fff}
+.conf{position:fixed;top:-10px;width:10px;height:14px;z-index:101;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+
+/* 출력용 복권 */
+.tpage{display:grid;grid-template-columns:repeat(2,minmax(0,380px));gap:12px;justify-content:center;margin-bottom:12px}
+.pt{position:relative;background:#fff;height:514px;padding:18px 46px 14px 18px;display:flex;flex-direction:column;overflow:hidden;border:1.5px dashed #aaa;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.pt .strip{width:32px}
+.pt .strip span{font-size:11px}
+.pt .wm{font-size:84px;bottom:70px;left:34px;opacity:.7}
+.pt>*:not(.strip):not(.wm):not(.pt-stamp){position:relative;z-index:1}
+.pt .subj{font-size:28px}
+.pt .subj small{font-size:15px}
+.pt .logo{margin:4px 0 0}
+.pt .fu{width:36px;height:36px;font-size:21px}
+.pt .lotto{font-size:52px}
+.pt .round{font-size:22px;margin:2px 0 8px}
+.pt .meta{font-size:14px;line-height:1.65}
+.pt .meta b{width:66px;letter-spacing:2px}
+.pt .dash{margin:11px -18px 11px -18px}
+.pt .kv{font-size:15px;gap:3px 10px}
+.pt-stamp{position:absolute;right:52px;top:108px;transform:rotate(-14deg);border:3px solid var(--red);color:var(--red);font-weight:900;font-size:16px;padding:2px 8px;border-radius:6px;opacity:.85;z-index:2;letter-spacing:2px}
+.pt-nums{display:grid;grid-template-columns:1.6fr 1fr;gap:6px;text-align:center}
+.pt-nums .cap{font-size:13px;font-weight:700;color:#555}
+.pt .balls{gap:5px;margin:8px 0 0}
+.pt .ball{width:38px;height:38px;font-size:17px;animation:none}
+.pt .ball.dot{width:8px;font-size:20px}
+.pt .barwrap{margin-top:auto}
+.pt .barcode{height:48px;margin-top:0}
+.pt .note{text-align:center;font-size:11.5px;color:#666;margin-top:6px}
+.pt .code{font-size:12px}
+
+@media print{
+  @page{size:A4;margin:8mm}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  html,body.admin{background:#fff!important}
+  .adm{padding:0;max-width:none}
+  .adm h1,.tabs,.noprint{display:none!important}
+  .tpage{grid-template-columns:1fr 1fr;gap:0;margin:0;break-after:page;page-break-after:always}
+  .tpage:last-child{break-after:auto;page-break-after:auto}
+  .pt{height:137mm;box-shadow:none;border:1px dashed #999}
+  .pt .wm{top:auto;bottom:150px}
+}
+@media (max-width:380px){
+  .ticket{padding:18px 40px 22px 14px}
+  .strip{width:30px}
+  .omr{grid-template-columns:36px 1fr}
+  .lotto{font-size:48px}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= 학생 화면 ================= -->
+<div id="student" class="wrap">
+  <div id="demoNote" class="demo hidden">🧪 <b>체험 모드</b> — 서버 주소(SCRIPT_URL)가 비어 있어 이 기기에만 저장됩니다. 실제 운영 전 설정을 완료하세요.</div>
+  <div class="status"><span>🎟️ <span id="stCount">누적 응모 -장</span></span><span class="dday" id="stDday"></span></div>
+
+  <!-- 응모 용지 -->
+  <div id="formView" class="ticket fadein">
+    <div class="strip"><span>* 인터넷 구입 가능 * 문의안내 * <span class="tName"></span></span></div>
+    <div class="wm" style="top:250px;left:40px">Lotto</div>
+    <div class="head"><div class="subj"><span class="tSubj"></span><small id="banLabel">복권</small></div></div>
+    <div class="logo"><div class="fu">福</div><div class="lotto">Lotto</div></div>
+    <div class="round">제 <span class="tRound"></span>회</div>
+    <div class="meta">
+      <div><b>발행일</b>: <span class="tIssue"></span></div>
+      <div><b>추첨일</b>: <span class="tDraw"></span></div>
+      <div><b>지급기한</b>: <span class="tPay"></span></div>
+    </div>
+    <div class="dash"></div>
+
+    <div class="lbl">① 반 선택</div>
+    <div class="chips" id="banChips"></div>
+    <div class="lbl">② 번호 · 이름</div>
+    <div class="row2">
+      <input class="inp" id="inNum" type="number" inputmode="numeric" min="1" max="40" placeholder="번호">
+      <input class="inp" id="inName" type="text" maxlength="10" placeholder="이름" autocomplete="off">
+    </div>
+
+    <div class="dash"></div>
+    <div class="sec">③ 나의 <span class="tExam"></span> 점수 예측<span class="big empty" id="scoreBig">__._ 점</span></div>
+    <div class="omr" id="omrScore"></div>
+
+    <div class="divider">반평균</div>
+    <div class="sec" style="margin-top:0"><span class="big empty" id="avgBig">__ 점</span></div>
+    <div class="omr" id="omrAvg"></div>
+
+    <div class="rule">🎯 <b>당첨 방법</b> — 실제 <b>내 점수</b>와 <b>우리 반 평균</b>에 가장 가깝게 맞힌 사람이 당첨!<br>
+      오차 = |예측 점수 − 실제 점수| + |예측 반평균 − 실제 반평균|<br>
+      반별 <b>1등 1명</b>만 당첨 (오차가 같으면 내 점수를 더 가깝게 맞힌 사람)<br>마감 11/13(금) · 1인 1장 · 구매 후 수정 불가</div>
+    <div class="err" id="err"></div>
+    <button class="btn" id="buyBtn">복권 구매하기 (무료)</button>
+  </div>
+
+  <!-- 발권된 복권 -->
+  <div id="ticketView" class="ticket issued hidden"></div>
+  <div class="foot" id="foot"></div>
+</div>
+
+<!-- 확인 모달 -->
+<div id="confirm" class="modal hidden">
+  <div class="box">
+    <h3>🎟️ 이대로 구매할까요?</h3>
+    <table id="cfTable"></table>
+    <div class="warn">※ 구매 후에는 번호를 바꿀 수 없어요.</div>
+    <div class="btns" style="margin-top:14px">
+      <button class="btn ghost" style="margin:0" id="cfNo">다시 고르기</button>
+      <button class="btn pink" style="margin:0;font-size:16px" id="cfYes">구매 확정</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 관리자 화면 ================= -->
+<div id="admin" class="hidden"></div>
+
+<script>
+/* ---------------- 공통 유틸 ---------------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const WD = ['일','월','화','수','목','금','토'];
+function fmtDate(iso){ if(!/^\d{4}-\d{2}-\d{2}/.test(iso)) return iso; const d = new Date(iso.length<=10 ? iso+'T00:00:00+09:00' : iso); const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()} / ${p(d.getMonth()+1)} / ${p(d.getDate())} (${WD[d.getDay()]})`; }
+function fmtTime(iso){ const d=new Date(iso); const p=n=>String(n).padStart(2,'0');
+  return `${d.getMonth()+1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+const mem = {};
+const store = {
+  get(k){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : (mem[k] ?? null); }catch(e){ return mem[k] ?? null; } },
+  set(k,v){ mem[k]=v; try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+  del(k){ delete mem[k]; try{ localStorage.removeItem(k); }catch(e){} }
+};
+const DEMO = !CONFIG.SCRIPT_URL;
+const fmtScore = v => (Math.round(v*10)/10).toFixed(1);
+
+/* ---------------- 서버 통신 ---------------- */
+async function api(body){
+  if(DEMO) return demoApi(body);
+  const r = await fetch(CONFIG.SCRIPT_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(body) });
+  return r.json();
+}
+// 체험 모드: 서버(Code.gs)와 같은 규칙을 이 기기 안에서 흉내 냄
+function demoApi(b){
+  const K = 'lotto_demo_entries_'+CONFIG.ROUND;
+  const list = store.get(K) || [];
+  if(b.action==='stats'){ const by={}; list.forEach(e=>by[e.ban]=(by[e.ban]||0)+1); return {ok:true,total:list.length,byClass:by}; }
+  if(b.action==='list') return {ok:true, entries:list};
+  if(b.action==='delete'){ store.set(K, list.filter(e=>e.id!==b.id)); return {ok:true}; }
+  if(b.action==='enter'){
+    const v = validate(b); if(v) return {ok:false,error:v};
+    if(list.some(e=>e.ban===String(b.ban) && +e.num===+b.num)) return {ok:false,error:`${b.ban}반 ${b.num}번은 이미 응모했어요. 수정이 필요하면 선생님께 말씀하세요.`};
+    const e = {id:String(list.length+1).padStart(4,'0'), time:new Date().toISOString(), ban:String(b.ban), num:+b.num, name:b.name.trim(), score:+b.score, avg:+b.avg, code:randCode()};
+    list.push(e); store.set(K,list); return {ok:true, entry:e};
+  }
+  return {ok:false,error:'알 수 없는 요청'};
+}
+function validate(b){
+  if(Date.now() > new Date(CONFIG.DEADLINE).getTime()) return '응모가 마감되었어요.';
+  if(!CONFIG.CLASSES.includes(String(b.ban))) return '반을 선택하세요.';
+  if(!(Number.isInteger(+b.num) && +b.num>=1 && +b.num<=40)) return '번호를 확인하세요.';
+  if(!b.name || !b.name.trim()) return '이름을 입력하세요.';
+  if(!(+b.score>=0 && +b.score<=100)) return '점수는 0~100점이에요.';
+  if(!(Number.isInteger(+b.avg) && +b.avg>=0 && +b.avg<=99)) return '반평균을 확인하세요.';
+  return '';
+}
+function randCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<12;i++){ s+=c[Math.floor(Math.random()*c.length)]; if(i%4===3&&i<11) s+='-'; } return s; }
+
+/* ---------------- 공통 텍스트 채우기 ---------------- */
+function fillCommon(){
+  document.querySelectorAll('.tSubj').forEach(e=>e.textContent=CONFIG.SUBJECT);
+  document.querySelectorAll('.tRound').forEach(e=>e.textContent=CONFIG.ROUND);
+  document.querySelectorAll('.tIssue').forEach(e=>e.textContent=fmtDate(CONFIG.ISSUE_DATE));
+  document.querySelectorAll('.tDraw').forEach(e=>e.textContent=fmtDate(CONFIG.DRAW_DATE));
+  document.querySelectorAll('.tPay').forEach(e=>e.textContent=fmtDate(CONFIG.PAY_DATE));
+  document.querySelectorAll('.tName').forEach(e=>e.textContent=CONFIG.TEACHER);
+  document.querySelectorAll('.tExam').forEach(e=>e.textContent=CONFIG.EXAM);
+  document.querySelectorAll('.tWin').forEach(e=>e.textContent=CONFIG.WINNERS);
+}
+
+/* =========================================================
+   학생 화면
+   ========================================================= */
+const S = { ban:'', s:{h:null,t:null,o:null,d:null}, a:{t:null,o:null} };
+const MY_KEY = 'lotto_my_ticket_'+CONFIG.ROUND;
+
+function initStudent(){
+  fillCommon();
+  if(DEMO) $('#demoNote').classList.remove('hidden');
+  const qs = new URLSearchParams(location.search);
+  const qb = qs.get('ban');
+  if(qb && CONFIG.CLASSES.includes(qb)) S.ban = qb;
+
+  // 반 칩
+  $('#banChips').innerHTML = CONFIG.CLASSES.map(b=>`<button class="chip" data-b="${b}">${b}반</button>`).join('');
+  $('#banChips').onclick = e => { const b = e.target.closest('.chip'); if(!b) return; S.ban = b.dataset.b; renderBan(); };
+  renderBan();
+
+  // OMR
+  buildOmr('#omrScore', [['h','백',[0,1]],['t','십'],['o','일.'],['d','소수<br>첫째',null,true]], 's');
+  buildOmr('#omrAvg', [['t','십'],['o','일.']], 'a');
+  renderOmr();
+
+  $('#buyBtn').onclick = openConfirm;
+  $('#cfNo').onclick = () => $('#confirm').classList.add('hidden');
+  $('#cfYes').onclick = submit;
+  $('#foot').textContent = `문의: ${CONFIG.TEACHER}`;
+
+  // D-day
+  const tick = () => {
+    const left = new Date(CONFIG.DEADLINE) - Date.now();
+    if(left<=0){ $('#stDday').textContent='응모 마감'; $('#buyBtn').disabled=true; $('#buyBtn').textContent='응모가 마감되었습니다'; return; }
+    const d = Math.floor(left/864e5), h = Math.floor(left%864e5/36e5), m = Math.floor(left%36e5/6e4);
+    $('#stDday').textContent = d>0 ? `마감 D-${d} ${h}시간` : `마감까지 ${h}시간 ${m}분`;
+  };
+  tick(); setInterval(tick, 30000);
+  loadStats();
+
+  const mine = store.get(MY_KEY);
+  if(mine) showTicket(mine, false);
+}
+async function loadStats(){
+  try{ const r = await api({action:'stats'}); if(r.ok){
+    const mine = S.ban && r.byClass ? ` · ${S.ban}반 ${r.byClass[S.ban]||0}장` : '';
+    $('#stCount').textContent = `누적 응모 ${r.total}장${mine}`; } }catch(e){ $('#stCount').textContent='누적 응모'; }
+}
+function renderBan(){
+  document.querySelectorAll('#banChips .chip').forEach(c=>c.classList.toggle('on', c.dataset.b===S.ban));
+  $('#banLabel').textContent = S.ban ? `${S.ban}반 복권` : '복권';
+}
+function buildOmr(sel, rows, key){
+  $(sel).innerHTML = rows.map(([k,label,only,small])=>{
+    const ds = only || [0,1,2,3,4,5,6,7,8,9];
+    const cells = ds.map(n=>`<button class="d" data-key="${key}" data-k="${k}" data-n="${n}">${n}</button>`).join('');
+    const style = only ? `style="grid-template-columns:repeat(10,1fr)"` : '';
+    const pad = only ? `<span style="grid-column:span ${(10-only.length)/2}"></span>` : '';
+    return `<div class="k ${small?'sm':''}">${label}</div><div class="digits" ${style}>${pad}${cells}</div>`;
+  }).join('');
+  $(sel).onclick = e => {
+    const b = e.target.closest('.d'); if(!b || b.disabled) return;
+    const obj = S[b.dataset.key], k = b.dataset.k, n = +b.dataset.n;
+    obj[k] = obj[k]===n ? null : n;
+    if(key==='s' && k==='h' && obj.h===1){ obj.t=0; obj.o=0; obj.d=0; }
+    renderOmr();
+  };
+}
+function renderOmr(){
+  const s = S.s, a = S.a, hundred = s.h===1;
+  document.querySelectorAll('.d').forEach(b=>{
+    const obj = S[b.dataset.key], k=b.dataset.k, n=+b.dataset.n;
+    b.classList.toggle('on', obj[k]===n);
+    b.disabled = b.dataset.key==='s' && k!=='h' && hundred && n!==0;
+  });
+  const sc = scoreVal();
+  const sb = $('#scoreBig');
+  const show = (v,d='_') => v===null ? d : v;
+  sb.textContent = sc!==null ? `${fmtScore(sc)} 점` : `${show(s.h)}${show(s.t)}${show(s.o)}.${show(s.d)} 점`;
+  sb.classList.toggle('empty', sc===null);
+  const av = avgVal(); const ab = $('#avgBig');
+  ab.textContent = av!==null ? `${av} 점` : `${show(a.t)}${show(a.o)} 점`;
+  ab.classList.toggle('empty', av===null);
+}
+function scoreVal(){ const s=S.s; if([s.h,s.t,s.o,s.d].some(v=>v===null)) return null; return s.h*100+s.t*10+s.o+s.d/10; }
+function avgVal(){ const a=S.a; if(a.t===null||a.o===null) return null; return a.t*10+a.o; }
+
+function gather(){
+  return { action:'enter', ban:S.ban, num:$('#inNum').value.trim(), name:$('#inName').value.trim(), score:scoreVal(), avg:avgVal() };
+}
+function openConfirm(){
+  const b = gather(); $('#err').textContent='';
+  let msg = '';
+  if(!b.ban) msg='① 반을 선택하세요.';
+  else if(!b.num) msg='② 번호를 입력하세요.';
+  else if(!b.name) msg='② 이름을 입력하세요.';
+  else if(b.score===null) msg='③ 내 점수의 모든 자리(백·십·일·소수첫째)를 마킹하세요.';
+  else if(b.avg===null) msg='③ 반평균의 십·일 자리를 마킹하세요.';
+  else msg = validate(b);
+  if(msg){ $('#err').textContent = msg; return; }
+  $('#cfTable').innerHTML = `<tr><td>응모자</td><td>${esc(b.ban)}반 ${esc(b.num)}번 ${esc(b.name)}</td></tr>
+    <tr><td>나의 예측 점수</td><td>${fmtScore(b.score)}점</td></tr>
+    <tr><td>예측 반평균</td><td>${b.avg}점</td></tr>`;
+  $('#confirm').classList.remove('hidden');
+}
+async function submit(){
+  const btn = $('#cfYes'); btn.disabled = true; btn.textContent = '발권 중…';
+  try{
+    const r = await api(gather());
+    $('#confirm').classList.add('hidden');
+    if(!r.ok){ $('#err').textContent = r.error || '응모에 실패했어요.'; return; }
+    store.set(MY_KEY, r.entry);
+    showTicket(r.entry, true);
+    loadStats();
+  }catch(e){
+    $('#confirm').classList.add('hidden');
+    $('#err').textContent = '인터넷 연결을 확인하고 다시 시도하세요.';
+  }finally{ btn.disabled=false; btn.textContent='구매 확정'; }
+}
+function barcodeSvg(code){
+  let x=0, bars=''; let seed=0; for(const ch of code) seed = (seed*31 + ch.charCodeAt(0)) >>> 0;
+  for(let i=0;i<70;i++){ seed = (seed*1103515245+12345)>>>0; const w = 1+(seed>>>16)%3; if(i%2===0) bars+=`<rect x="${x}" y="0" width="${w}" height="44"/>`; x+=w; }
+  return `<svg class="barcode" viewBox="0 0 ${x} 44" preserveAspectRatio="none">${bars}</svg>`;
+}
+function showTicket(e, fresh){
+  $('#formView').classList.add('hidden');
+  const v = $('#ticketView'); v.classList.remove('hidden'); v.classList.toggle('fadein', fresh);
+  const sd = fmtScore(e.score).replace('.','').padStart(4,'0').split('');
+  const ad = String(e.avg).padStart(2,'0').split('');
+  const ball = (n,i,delay) => `<div class="ball b${n%5}" style="animation-delay:${delay}s">${n}</div>`;
+  v.innerHTML = `
+    <div class="strip"><span>* 인터넷 구입 가능 * 문의안내 * ${esc(CONFIG.TEACHER)}</span></div>
+    <div class="wm" style="top:260px;left:40px">Lotto</div>
+    <div class="stamp">발 권 완 료</div>
+    <div class="head"><div class="subj">${esc(CONFIG.SUBJECT)}<small>${esc(e.ban)}반 복권</small></div></div>
+    <div class="logo"><div class="fu">福</div><div class="lotto">Lotto</div></div>
+    <div class="round">제 ${esc(CONFIG.ROUND)}회</div>
+    <div class="meta">
+      <div><b>발행일</b>: ${fmtDate(CONFIG.ISSUE_DATE)}</div>
+      <div><b>추첨일</b>: ${fmtDate(CONFIG.DRAW_DATE)}</div>
+      <div><b>지급기한</b>: ${fmtDate(CONFIG.PAY_DATE)}</div>
+    </div>
+    <div class="dash"></div>
+    <dl class="kv">
+      <dt>응모번호</dt><dd>No. ${esc(e.id)}</dd>
+      <dt>응모자</dt><dd>${esc(e.ban)}반 ${esc(e.num)}번 ${esc(e.name)}</dd>
+      <dt>구매일시</dt><dd>${fmtTime(e.time)}</dd>
+    </dl>
+    <div class="dash"></div>
+    <div class="sec" style="margin:0">나의 점수</div>
+    <div class="balls">${ball(+sd[0],0,.1)}${ball(+sd[1],1,.3)}${ball(+sd[2],2,.5)}<div class="ball dot">.</div>${ball(+sd[3],3,.7)}</div>
+    <div class="divider">반평균</div>
+    <div class="balls">${ball(+ad[0],0,.9)}${ball(+ad[1],1,1.1)}</div>
+    <div class="dash"></div>
+    ${barcodeSvg(e.code)}
+    <div class="code">${esc(e.code)}</div>
+    <div class="save">📸 화면을 캡처해서 보관하세요. ${esc(fmtDate(CONFIG.DRAW_DATE))} 발표합니다!</div>
+    <button class="btn ghost" id="anotherBtn" style="margin-top:14px">다른 학생으로 응모하기 (공용 기기)</button>`;
+  $('#anotherBtn').onclick = () => {
+    store.del(MY_KEY);
+    S.s={h:null,t:null,o:null,d:null}; S.a={t:null,o:null}; $('#inNum').value=''; $('#inName').value='';
+    renderOmr(); v.classList.add('hidden'); $('#formView').classList.remove('hidden'); window.scrollTo(0,0);
+  };
+  window.scrollTo(0,0);
+}
+
+/* =========================================================
+   관리자 화면 (#admin)
+   ========================================================= */
+const A = { key:'', entries:[], tab:'list', ban:CONFIG.CLASSES[0], showIdx:0, showList:[] };
+const SC_KEY = 'lotto_admin_scores_'+CONFIG.ROUND;   // 실제 점수는 선생님 기기에만 저장
+const scores = () => store.get(SC_KEY) || {};
+
+function initAdmin(){
+  document.body.classList.add('admin');
+  $('#student').classList.add('hidden'); $('#confirm').classList.add('hidden');
+  const root = $('#admin'); root.classList.remove('hidden');
+  root.innerHTML = `<div class="login">
+      <h2>🔐 관리자</h2>
+      <p class="hint" style="margin-bottom:12px">${DEMO?'체험 모드: 아무 비밀번호나 입력하세요.':'Code.gs 에 정한 ADMIN_KEY 를 입력하세요.'}</p>
+      <input class="inp" id="pw" type="password" placeholder="비밀번호">
+      <div class="err" id="lerr"></div>
+      <button class="btn" id="lgo" style="margin-top:6px">들어가기</button></div>`;
+  const go = async () => {
+    A.key = $('#pw').value; $('#lerr').textContent='';
+    try{ const r = await api({action:'list', key:A.key});
+      if(!r.ok){ $('#lerr').textContent = r.error||'실패'; return; }
+      A.entries = r.entries; renderAdmin();
+    }catch(e){ $('#lerr').textContent='서버에 연결할 수 없어요. SCRIPT_URL을 확인하세요.'; }
+  };
+  $('#lgo').onclick = go; $('#pw').onkeydown = e => { if(e.key==='Enter') go(); };
+}
+async function reload(){
+  const r = await api({action:'list', key:A.key}); if(r.ok){ A.entries = r.entries; renderAdmin(); }
+}
+function renderAdmin(){
+  const root = $('#admin');
+  root.innerHTML = `<div class="adm">
+    <h1><span class="fu" style="width:34px;height:34px;font-size:20px">福</span> Lotto 관리 <small>${esc(CONFIG.SUBJECT)} · 제 ${esc(CONFIG.ROUND)}회 ${DEMO?'· 🧪 체험 모드':''}</small></h1>
+    <div class="tabs noprint">
+      <button class="tab" data-t="list">📋 응모 현황</button>
+      <button class="tab" data-t="draw">🎯 채점 · 추첨</button>
+      <button class="tab" data-t="tickets">🎟️ 복권 출력</button>
+      <button class="tab" data-t="qr">📱 QR 코드</button>
+      <a class="tab" href="./" style="margin-left:auto;text-decoration:none;color:#111">학생 화면 ↗</a>
+    </div>
+    <div id="pane"></div></div>`;
+  root.querySelectorAll('.tab[data-t]').forEach(t=>{ t.classList.toggle('on', t.dataset.t===A.tab); t.onclick=()=>{A.tab=t.dataset.t; renderAdmin();}; });
+  ({list:paneList, draw:paneDraw, tickets:paneTickets, qr:paneQr})[A.tab]();
+}
+
+/* ---- 복권 출력 ---- */
+function printTicket(e){
+  const sd = fmtScore(e.score).replace('.','').padStart(4,'0').split('');
+  const ad = String(e.avg).padStart(2,'0').split('');
+  const ball = n => `<div class="ball b${n%5}">${n}</div>`;
+  return `<div class="pt">
+    <div class="strip"><span>* 인터넷 구입 가능 * 문의안내 * ${esc(CONFIG.TEACHER)}</span></div>
+    <div class="wm">Lotto</div>
+    <div class="pt-stamp">발권완료</div>
+    <div class="subj">${esc(CONFIG.SUBJECT)}<small>${esc(e.ban)}반 복권</small></div>
+    <div class="logo"><div class="fu">福</div><div class="lotto">Lotto</div></div>
+    <div class="round">제 ${esc(CONFIG.ROUND)}회</div>
+    <div class="meta">
+      <div><b>발행일</b>: ${fmtDate(CONFIG.ISSUE_DATE)}</div>
+      <div><b>추첨일</b>: ${fmtDate(CONFIG.DRAW_DATE)}</div>
+      <div><b>지급기한</b>: ${fmtDate(CONFIG.PAY_DATE)}</div>
+    </div>
+    <div class="dash"></div>
+    <dl class="kv">
+      <dt>응모번호</dt><dd>No. ${esc(e.id)}</dd>
+      <dt>응모자</dt><dd>${esc(e.ban)}반 ${esc(e.num)}번 ${esc(e.name)}</dd>
+      <dt>구매일시</dt><dd>${fmtTime(e.time)}</dd>
+    </dl>
+    <div class="dash"></div>
+    <div class="pt-nums">
+      <div><div class="cap">나의 점수</div><div class="balls">${ball(+sd[0])}${ball(+sd[1])}${ball(+sd[2])}<div class="ball dot">.</div>${ball(+sd[3])}</div></div>
+      <div><div class="cap">반평균</div><div class="balls">${ball(+ad[0])}${ball(+ad[1])}</div></div>
+    </div>
+    <div class="barwrap">${barcodeSvg(e.code)}
+      <div class="code">${esc(e.code)}</div>
+      <div class="note">${esc(fmtDate(CONFIG.DRAW_DATE))} 발표 · 당첨 시 이 복권을 지참하세요</div></div>
+  </div>`;
+}
+function paneTickets(){
+  const sel = A.pban || 'all';
+  const L = A.entries.filter(e=>sel==='all'||e.ban===sel)
+    .sort((a,b)=>CONFIG.CLASSES.indexOf(a.ban)-CONFIG.CLASSES.indexOf(b.ban) || a.num-b.num);
+  let pages = '';
+  for(let i=0;i<L.length;i+=4) pages += `<div class="tpage">${L.slice(i,i+4).map(printTicket).join('')}</div>`;
+  $('#pane').innerHTML = `<div class="card noprint"><h2>발권 복권 출력 <span class="pill">${L.length}장 · A4 ${Math.ceil(L.length/4)}쪽</span></h2>
+    <div class="toolbar">${['all',...CONFIG.CLASSES].map(c=>`<button class="chip ${c===sel?'on':''}" data-pb="${c}">${c==='all'?'전체':c+'반'}</button>`).join('')}
+      <button class="abtn sub" id="tRl">🔄 새로고침</button>
+      <button class="abtn pink" id="tPr" style="margin-left:auto">🖨️ 인쇄 (A4 1장에 4매)</button></div>
+    <p class="hint">반·번호 순으로 정렬돼요. 점선을 따라 자르세요.<br>인쇄 창에서 <b>배경 그래픽</b>을 켜야 분홍 띠와 색깔 공이 나와요. 흑백 인쇄도 괜찮아요.</p></div>
+    ${pages || '<p class="hint">아직 응모가 없어요.</p>'}`;
+  $('#pane').querySelectorAll('[data-pb]').forEach(c=>c.onclick=()=>{A.pban=c.dataset.pb; paneTickets();});
+  $('#tRl').onclick = reload;
+  $('#tPr').onclick = () => { try{ window.print(); }catch(e){} };
+}
+
+/* ---- 응모 현황 ---- */
+function paneList(){
+  const E = A.entries;
+  const by = b => E.filter(e=>e.ban===b);
+  let h = `<div class="grid4" style="margin-bottom:14px"><div class="stat"><b>${E.length}</b><span>전체 응모</span></div>
+    ${CONFIG.CLASSES.map(b=>`<div class="stat"><b>${by(b).length}</b><span>${b}반</span></div>`).join('')}</div>
+    <div class="toolbar"><button class="abtn" id="rl">🔄 새로고침</button><button class="abtn sub" id="cp">📋 엑셀용 복사</button><span class="hint" id="cpm"></span></div>`;
+  CONFIG.CLASSES.forEach(b=>{
+    const L = by(b).sort((x,y)=>x.num-y.num);
+    h += `<div class="card"><h2>${b}반 <span class="pill">${L.length}명</span></h2>
+      ${L.length?`<div style="overflow:auto"><table class="t"><tr><th>응모번호</th><th>번호</th><th>이름</th><th>예측 점수</th><th>예측 반평균</th><th>응모 시각</th><th></th></tr>
+      ${L.map(e=>`<tr><td>${esc(e.id)}</td><td>${esc(e.num)}</td><td>${esc(e.name)}</td><td>${fmtScore(e.score)}</td><td>${esc(e.avg)}</td><td>${fmtTime(e.time)}</td>
+        <td><button class="abtn mini sub" data-del="${esc(e.id)}">삭제</button></td></tr>`).join('')}</table></div>`:'<p class="hint">아직 응모가 없어요.</p>'}</div>`;
+  });
+  $('#pane').innerHTML = h;
+  $('#rl').onclick = reload;
+  $('#cp').onclick = async () => {
+    const rows = [['응모번호','반','번호','이름','예측점수','예측반평균','응모시각'], ...A.entries.map(e=>[e.id,e.ban,e.num,e.name,fmtScore(e.score),e.avg,new Date(e.time).toLocaleString('ko-KR')])];
+    try{ await navigator.clipboard.writeText(rows.map(r=>r.join('\t')).join('\n')); $('#cpm').textContent='복사됨! 엑셀에 붙여넣기 하세요.'; }catch(e){ $('#cpm').textContent='복사가 막혀 있어요.'; }
+  };
+  $('#pane').querySelectorAll('[data-del]').forEach(btn=>btn.onclick = async () => {
+    if(!btn.classList.contains('danger')){ btn.classList.add('danger'); btn.textContent='정말 삭제?'; return; }
+    const r = await api({action:'delete', key:A.key, id:btn.dataset.del}); if(r.ok) reload();
+  });
+}
+
+/* ---- 채점 · 추첨 ---- */
+function ranked(b){
+  const sc = scores()[b] || {avg:'', s:{}};
+  const avg = sc.avg===''||sc.avg==null ? null : +sc.avg;
+  const L = A.entries.filter(e=>e.ban===b).map(e=>{
+    const act = sc.s[e.num]; const has = act!==undefined && act!=='' && avg!==null;
+    const e1 = has ? Math.abs(e.score - +act) : null, e2 = avg!==null ? Math.abs(e.avg - avg) : null;
+    return {...e, actual: act ?? '', e1, e2, tot: has ? Math.round((e1+e2)*10)/10 : null};
+  });
+  const done = L.filter(x=>x.tot!==null).sort((x,y)=> x.tot-y.tot || x.e1-y.e1 || x.id.localeCompare(y.id));
+  let rank=0, prev=null;
+  done.forEach((x,i)=>{ if(!prev || x.tot!==prev.tot || x.e1!==prev.e1) rank=i+1; x.rank=rank; prev=x; });
+  const todo = L.filter(x=>x.tot===null).sort((x,y)=>x.num-y.num);
+  return {avg, done, todo};
+}
+function paneDraw(){
+  const b = A.ban, R = ranked(b), sc = scores()[b] || {avg:'',s:{}};
+  const medal = r => r>CONFIG.WINNERS ? '' : r===1?'🥇':r===2?'🥈':r===3?'🥉':'🎖️';
+  const row = x => `<tr class="${x.rank&&x.rank<=CONFIG.WINNERS?'w'+Math.min(x.rank,3):''}">
+    <td class="medal">${x.rank?(medal(x.rank)+' '+x.rank):'-'}</td><td>${esc(x.num)}</td><td>${esc(x.name)}</td>
+    <td>${fmtScore(x.score)}</td><td><input class="sinp" data-num="${esc(x.num)}" value="${esc(x.actual)}" inputmode="decimal" placeholder="점수"></td>
+    <td>${x.e1===null?'-':fmtScore(x.e1)}</td><td>${esc(x.avg)}</td><td>${x.e2===null?'-':fmtScore(x.e2)}</td><td><b>${x.tot===null?'-':fmtScore(x.tot)}</b></td></tr>`;
+  $('#pane').innerHTML = `
+    <div class="toolbar">${CONFIG.CLASSES.map(c=>`<button class="chip ${c===b?'on':''}" data-ban="${c}">${c}반</button>`).join('')}</div>
+    <div class="card"><h2>${b}반 실제 반평균</h2>
+      <div class="toolbar"><input class="inp" id="avgIn" style="width:140px" inputmode="decimal" placeholder="예: 62.4" value="${esc(sc.avg)}">
+      <span class="hint">나이스 반평균을 그대로 입력 (소수 가능)</span></div>
+      <h2 style="margin-top:10px">실제 점수 한꺼번에 붙여넣기</h2>
+      <textarea class="paste" id="pasteIn" placeholder="엑셀에서 [번호, 점수] 또는 [번호, 이름, 점수] 열을 복사해 붙여넣기&#10;3	87.5&#10;4	92"></textarea>
+      <div class="toolbar" style="margin-top:8px"><button class="abtn" id="pasteGo">붙여넣기 적용</button><span class="hint" id="pasteMsg">실제 점수는 서버에 올라가지 않고 이 기기에만 저장돼요.</span></div>
+    </div>
+    <div class="card"><h2>${b}반 순위 <span class="pill">채점 ${R.done.length} / ${R.done.length+R.todo.length}명</span>
+      <button class="abtn pink" id="showGo" style="margin-left:auto" ${R.done.length?'':'disabled'}>🎉 당첨 발표 화면</button></h2>
+      <div style="overflow:auto"><table class="t"><tr><th>순위</th><th>번호</th><th>이름</th><th>예측 점수</th><th>실제 점수</th><th>점수 오차</th><th>예측 평균</th><th>평균 오차</th><th>총 오차</th></tr>
+      ${R.done.map(row).join('')}${R.todo.map(row).join('')}</table></div>
+      <p class="hint" style="margin-top:8px">순위: 총 오차가 작은 순 → 같으면 내 점수 오차가 작은 순 → 그래도 같으면 공동 순위. 반별 1등만 당첨(동점이면 공동 1등).</p>
+    </div>`;
+  $('#pane').querySelectorAll('[data-ban]').forEach(c=>c.onclick=()=>{A.ban=c.dataset.ban; paneDraw();});
+  const save = fn => { const all = scores(); all[b] = all[b] || {avg:'',s:{}}; fn(all[b]); store.set(SC_KEY, all); };
+  $('#avgIn').onchange = e => { save(o=>o.avg=e.target.value.trim()); paneDraw(); };
+  $('#pane').querySelectorAll('.sinp').forEach(i=>i.onchange = () => { save(o=>o.s[i.dataset.num]=i.value.trim()); paneDraw(); });
+  $('#pasteGo').onclick = () => {
+    let n=0; save(o=>{ $('#pasteIn').value.split(/\r?\n/).forEach(line=>{
+      const nums = line.split(/[\t,; ]+/).map(t=>t.trim()).filter(t=>t!=='' && !isNaN(t));
+      if(nums.length>=2){ o.s[String(+nums[0])] = nums[nums.length-1]; n++; } }); });
+    paneDraw(); $('#pasteMsg').textContent = `${n}명 점수 입력됨`;
+  };
+  $('#showGo').onclick = () => startShow(b, R);
+}
+function startShow(b, R){
+  const win = R.done.filter(x=>x.rank<=CONFIG.WINNERS).reverse();   // 낮은 등수부터 공개
+  A.showList = win; A.showIdx = -1;
+  const el = document.createElement('div'); el.className='show'; el.id='show';
+  el.innerHTML = `<div class="ttl">${esc(CONFIG.SUBJECT)} ${esc(b)}반 福 Lotto</div>
+    <div class="sub">제 ${esc(CONFIG.ROUND)}회 당첨 발표 · 실제 반평균 ${R.avg}점</div>
+    <div class="stage" id="stage"><div class="who" style="opacity:.6">두구두구두구…</div></div>
+    <div class="ctrl"><button class="x" id="shX">닫기</button><button id="shN">다음 공개 ▶</button></div>`;
+  document.body.appendChild(el);
+  $('#shX').onclick = () => { el.remove(); document.querySelectorAll('.conf').forEach(c=>c.remove()); };
+  $('#shN').onclick = () => {
+    A.showIdx++;
+    const x = A.showList[A.showIdx];
+    if(!x){ $('#stage').innerHTML = `<div class="who">🎉 축하합니다! 🎉</div>`; $('#shN').classList.add('hidden'); confetti(); return; }
+    $('#stage').innerHTML = `<div class="rank">${x.rank}등</div><div class="who">${esc(x.num)}번 ${esc(x.name)}</div>
+      <div class="det">예측 ${fmtScore(x.score)}점 / 반평균 ${esc(x.avg)}점 &nbsp;·&nbsp; 총 오차 ${fmtScore(x.tot)}</div>`;
+    if(x.rank===1) confetti();
+    if(A.showIdx===A.showList.length-1) $('#shN').textContent='마무리 ▶';
+  };
+}
+function confetti(){
+  const cols=['#f6b3dd','#f5c542','#69c8f2','#ff7272','#b0d840','#fff'];
+  for(let i=0;i<120;i++){ const c=document.createElement('div'); c.className='conf';
+    c.style.left=Math.random()*100+'vw'; c.style.background=cols[i%cols.length];
+    c.style.animationDuration=(2+Math.random()*2.5)+'s'; c.style.animationDelay=Math.random()*.8+'s';
+    document.body.appendChild(c); setTimeout(()=>c.remove(),5500); }
+}
+
+/* ---- QR 코드 ---- */
+function paneQr(){
+  const base = store.get('lotto_qr_base') || (location.origin && location.origin!=='null' ? location.origin+location.pathname : '');
+  $('#pane').innerHTML = `<div class="card noprint"><h2>학생 응모 주소</h2>
+    <div class="toolbar"><input class="inp" id="qBase" style="flex:1;min-width:240px" value="${esc(base)}" placeholder="https://아이디.github.io/lotto/">
+    <button class="abtn" id="qGo">QR 만들기</button><button class="abtn sub" id="qPr">🖨️ 인쇄</button></div>
+    <p class="hint">반별 QR을 찍으면 반이 미리 선택된 채로 열려요. 칠판·TV에 띄우거나 인쇄해서 붙이세요.</p></div>
+    <div id="qrArea" class="qrs"></div>`;
+  const draw = () => {
+    const u = $('#qBase').value.trim().split('#')[0].split('?')[0]; store.set('lotto_qr_base', u);
+    $('#qrArea').innerHTML = CONFIG.CLASSES.map(b=>`<div class="qrc"><div class="t1">${esc(CONFIG.SUBJECT)} ${b}반</div><div class="t2">福 Lotto</div>
+      <div class="q" id="q${b}"></div><div style="font-weight:700">제 ${esc(CONFIG.ROUND)}회 · ${fmtTime(CONFIG.DEADLINE)} 마감</div><div class="u">${esc(u)}?ban=${b}</div></div>`).join('');
+    CONFIG.CLASSES.forEach(b=>{ if(window.QRCode) new QRCode($('#q'+b), {text:`${u}?ban=${b}`, width:180, height:180, correctLevel:QRCode.CorrectLevel.M}); else $('#q'+b).textContent='QR 라이브러리를 불러오지 못했어요'; });
+  };
+  $('#qGo').onclick = draw; $('#qPr').onclick = () => { try{ window.print(); }catch(e){} };
+  if(base) draw();
+}
+
+/* ---------------- 시작 ---------------- */
+function route(){ if(location.hash==='#admin') initAdmin(); }
+window.addEventListener('hashchange', () => location.hash==='#admin' ? initAdmin() : location.reload());
+initStudent(); route();
+</script>
+</body>
+</html>
